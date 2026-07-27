@@ -161,12 +161,24 @@ Two fixes, and I think both:
 Normalisation is the more robust of the two because it keeps working for groups
 added later by someone who forgets to add aliases.
 
-**With a collision invariant (gemini, round 1).** Folding `C₅`→`c5` could in
-principle make two distinct groups collide. So `loadLibrary()` builds the
-normalised lookup at load time and throws if any two names or aliases normalise
-to the same string. The library refuses to be ambiguous rather than silently
-resolving to whichever file sorted first — which is exactly the class of bug this
-project exists to avoid.
+**With a collision invariant — but a cross-group one (gemini round 1, corrected
+by codex round 2).**
+
+The obvious statement of this rule is wrong, and wrong in a way that would break
+the feature it protects. "Reject any two names or aliases that normalise to the
+same string" would refuse to load the library the moment we add the ASCII
+aliases: `C₅` normalises to `c5`, and the alias `C5` normalises to `c5` too.
+
+Collisions *within* one group are the entire point — that is what an alias is.
+
+So the invariant is:
+
+> Two identifiers may normalise alike **only if they name the same group.**
+
+`loadLibrary()` builds the normalised index and throws only when one normalised
+key would resolve to two different files. The library refuses to be ambiguous
+about *which group you meant*, while remaining free to accept many spellings of
+the same one.
 
 ## Argument parsing
 
