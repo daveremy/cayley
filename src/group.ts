@@ -13,13 +13,50 @@
 // different answers in a non-abelian group. Here it is a line of code.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── The vocabulary ───────────────────────────────────────────────────────────
+// Each alias below names one idea. None of them add runtime safety — they are
+// all `string` underneath — but each one states what kind of thing is meant.
+
+/** A member of the group. A node on the diagram. Just a label: "a2", "RB", "-k". */
+export type Element = string;
+
+/**
+ * An element chosen to be a button — one of the arrow colours on the diagram.
+ *
+ * Deliberately an ALIAS, not a distinct type. A generator IS an element; being
+ * a generator is a role it plays, not a species it belongs to. Branding this
+ * so the compiler kept them apart would encode something false about groups.
+ */
+export type Generator = Element;
+
+/** A route through the diagram: a sequence of generator-steps. */
+export type Word = Generator[];
+
+/** One generator's arrows — where it sends every node. arrowMap[from] = to */
+export type ArrowMap = Record<Element, Element>;
+
+/** Every element's canonical route from the identity. */
+export type Words = Map<Element, Word>;
+
+/** A filled multiplication table. table[row][col] = row · col */
+export type Table = Record<Element, Record<Element, Element>>;
+
+/**
+ * A group, stored as a Cayley diagram — nothing more.
+ *
+ * Note what is absent: no multiplication table, no operation, no algebra.
+ * The arrows are a compression of the table; everything else is derived.
+ * C₅ is 5 arrows and yields 25 cells.
+ */
 export type Group = {
   name: string;
-  elements: string[];                             // node labels
-  identity: string;
-  generators: string[];                           // the "buttons"
-  arrows: Record<string, Record<string, string>>; // arrows[gen][from] = to
+  elements: Element[];
+  identity: Element;
+  generators: Generator[];
+  arrows: Record<Generator, ArrowMap>;
 };
+
+// ── Derived structure ────────────────────────────────────────────────────────
 
 /**
  * Give every element a WORD: the sequence of generators that walks from the
@@ -28,9 +65,9 @@ export type Group = {
  *
  * Breadth-first, so each word is the shortest one.
  */
-export function words(g: Group): Map<string, string[]> {
-  const found = new Map<string, string[]>([[g.identity, []]]);
-  const queue: string[] = [g.identity];
+export function words(g: Group): Words {
+  const found: Words = new Map([[g.identity, []]]);
+  const queue: Element[] = [g.identity];
 
   while (queue.length) {
     const from = queue.shift()!;
@@ -47,31 +84,22 @@ export function words(g: Group): Map<string, string[]> {
 }
 
 /**
- * ┌───────────────────────────────────────────────────────────────────────────┐
- * │  YOUR TURN.                                                               │
- * │                                                                           │
- * │  Compute x · y using ONLY the arrows. No arithmetic, no special cases.    │
- * │                                                                           │
- * │  The whole idea in one sentence:                                          │
- * │      y names a path from the identity — so walk that same path,           │
- * │      but start at x instead.                                              │
- * │                                                                           │
- * │  You have `words(g)` above, which hands you the path for any element.     │
- * │  Three or four lines. Delete the throw when you write it.                 │
- * └───────────────────────────────────────────────────────────────────────────┘
+ * x · y, computed from arrows alone.
+ *
+ * y names a route from the identity — so walk that same route, but start at x.
  */
-export function multiply(g: Group, x: string, y: string): string {
-  const path = words(g).get(y);                      // y's route from the identity
+export function multiply(g: Group, x: Element, y: Element): Element {
+  const path = words(g).get(y);
   if (path === undefined) throw new Error(`${g.name}: ${y} is not an element`);
 
-  let here = x;                                      // but start from x
-  for (const gen of path) here = g.arrows[gen][here]; // walk it, one arrow at a time
-  return here;                                       // wherever you stop IS the product
+  let here: Element = x;
+  for (const gen of path) here = g.arrows[gen][here];
+  return here;
 }
 
-/** Full multiplication table. table[row][col] = row · col */
-export function table(g: Group): Record<string, Record<string, string>> {
-  const t: Record<string, Record<string, string>> = {};
+/** Every product, for every ordered pair. */
+export function table(g: Group): Table {
+  const t: Table = {};
   for (const row of g.elements) {
     t[row] = {};
     for (const col of g.elements) t[row][col] = multiply(g, row, col);
@@ -97,7 +125,7 @@ export function printTable(g: Group): void {
 /** Every element appears exactly once per row and per column. */
 export function isLatinSquare(g: Group): boolean {
   const t = table(g);
-  const complete = (xs: string[]) => new Set(xs).size === g.elements.length;
+  const complete = (xs: Element[]) => new Set(xs).size === g.elements.length;
 
   return g.elements.every(
     (row) =>
