@@ -223,6 +223,12 @@ describe("phase 2 — optional metadata is validated too", () => {
     assert.match(problems(d), /notes must be a string if present/);
   });
 
+  test("duplicate generators are rejected — the schema says uniqueItems, so the loader must too", () => {
+    const d = good();
+    d.generators = ["r", "r"];
+    assert.match(problems(d), /generators lists "r" more than once/);
+  });
+
   test("a typo'd field name is reported rather than silently ignored", () => {
     const d = good();
     d.alises = ["oops"];
@@ -237,5 +243,20 @@ describe("loadGroup errors name the file", () => {
 
   test("throws on a missing file", () => {
     assert.throws(() => loadGroup("groups/nope.group.json"));
+  });
+
+  test("the library resolves relative to the source, not the cwd", () => {
+    // Running from any other directory must not produce a raw ENOENT.
+    const before = process.cwd();
+    try {
+      process.chdir("/tmp");
+      assert.ok(loadLibrary().length >= 3);
+    } finally {
+      process.chdir(before);
+    }
+  });
+
+  test("a missing library directory explains itself", () => {
+    assert.throws(() => loadLibrary("/tmp/definitely-not-a-group-library"), /cannot read the group library/);
   });
 });

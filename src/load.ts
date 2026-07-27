@@ -16,7 +16,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { readdirSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, join, resolve } from "node:path";
 
 import { table, words } from "./group.ts";
 import type { Element, Generator, Group, Permutation } from "./group.ts";
@@ -82,7 +82,16 @@ function checkShape(data: unknown): Issue[] {
     }
   }
   strArray("elements");
-  strArray("generators");
+  if (strArray("generators")) {
+    const gens = d.generators as string[];
+    const dupes = gens.filter((x, i) => gens.indexOf(x) !== i);
+    if (dupes.length) {
+      issues.push({
+        phase: 2,
+        message: `generators lists ${list([...new Set(dupes)])} more than once — each generator is one arrow colour, named once`,
+      });
+    }
+  }
 
   // Optional metadata. Unvalidated metadata is still a crash waiting to happen:
   // `"aliases": "Z4"` would sail through and then blow up in findGroup() with a
@@ -297,14 +306,27 @@ export function loadGroup(path: string): Group {
   return group;
 }
 
+/** The library lives next to the source, not next to wherever you happen to be. */
+export const LIBRARY_DIR = resolve(import.meta.dirname, "..", "groups");
+
 /**
  * Every group in the library, smallest first.
  *
  * Non-recursive on purpose: `groups/drafts/` holds work in progress that is not
  * expected to be valid, and must stay invisible here.
+ *
+ * The default directory is resolved from this module's location rather than the
+ * process's cwd — otherwise running from any other directory dies with a raw
+ * ENOENT, which is a miserable error for someone who is here to learn algebra.
  */
-export function loadLibrary(dir = "groups"): Group[] {
-  const files = readdirSync(dir)
+export function loadLibrary(dir: string = LIBRARY_DIR): Group[] {
+  let files: string[];
+  try {
+    files = readdirSync(dir);
+  } catch {
+    throw new Error(`cannot read the group library at ${dir} — expected a directory of *.group.json files`);
+  }
+  files = files
     .filter((f) => f.endsWith(".group.json"))
     .sort();
 
