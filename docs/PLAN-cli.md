@@ -67,9 +67,12 @@ is what makes a CLI testable at all.
 | `order <group> [element]` | element orders | ⚠️ lives in `cli.ts` — move it |
 | `diff <a> <b>` | two groups side by side | ✅ |
 | `check <file>` | validation report | ✅ in `check.ts` — fold in |
-| `props <group>` | every structural property at once | ✅ scattered |
 
-Nine commands, all wrapping code that already exists.
+Eight commands, all wrapping code that already exists.
+
+**`props` dropped (gemini, round 1).** It overlapped `show` with no clear
+boundary — two commands answering "tell me about this group" is one command too
+many. `show` returns everything; `--json` is the exhaustive machine form.
 
 ### Consolidation
 
@@ -96,18 +99,46 @@ in tests exact rather than regex-matching prose.
 
 Human output stays the default — the primary user is a person, not a pipeline.
 
+**Exhaustive, not minimal (resolves open question 2).** `show --json` returns
+every derived property. The cost objection does not survive contact with the
+memoisation added earlier: `table()` and `words()` are cached per group, so
+computing everything is sub-millisecond at these sizes. And a caller that has to
+make four invocations to assemble one picture is a bad API.
+
 ## Exit codes
 
 ```
 0   success
-1   the operation failed for a legitimate domain reason
-    (file is not a group; no such element)
-2   usage error (unknown command, missing argument, unknown group)
+1   DOMAIN failure — the command was well-formed, the operation did not succeed
+    (file is not a group; no such group; no such element)
+2   USAGE error — the invocation itself was wrong
+    (unknown command, missing argument, bad flag)
 ```
 
-Distinguishing 1 from 2 matters: "your file is not a group" and "you typed the
-command wrong" are different problems and a script should be able to tell them
-apart.
+**Revised after review.** The draft put "unknown group" under 2. Gemini
+corrected it, and is right: POSIX convention is that 2 means the *syntax* was
+wrong, while 1 means a syntactically valid command failed to do its job.
+`cayley show C99` is perfectly well-formed — the group simply is not there. That
+is a domain failure.
+
+The distinction matters for scripting: "you typed it wrong" and "it is not in the
+library" want different handling.
+
+### Typed errors carry the exit code (gemini, round 1)
+
+`commands.ts` must not call `process.exit` — it does not know it is in a CLI. It
+throws typed errors and the adapter maps them:
+
+```ts
+class DomainError extends Error {}          // → exit 1
+class UnknownGroupError extends DomainError {}
+class UnknownElementError extends DomainError {}
+class UsageError extends Error {}           // → exit 2
+```
+
+`GroupValidationError` (already in `load.ts`) becomes a `DomainError`. The
+adapter is then a single try/catch with two branches, and the same errors are
+directly reusable by an HTTP layer mapping to 404 vs 400.
 
 ## ⚑ Typeability — a real defect, not polish
 
@@ -130,6 +161,13 @@ Two fixes, and I think both:
 Normalisation is the more robust of the two because it keeps working for groups
 added later by someone who forgets to add aliases.
 
+**With a collision invariant (gemini, round 1).** Folding `C₅`→`c5` could in
+principle make two distinct groups collide. So `loadLibrary()` builds the
+normalised lookup at load time and throws if any two names or aliases normalise
+to the same string. The library refuses to be ambiguous rather than silently
+resolving to whichever file sorted first — which is exactly the class of bug this
+project exists to avoid.
+
 ## Argument parsing
 
 `node:util.parseArgs`, built in since Node 18. No dependency, no hand-rolled
@@ -138,14 +176,35 @@ flag loop. Handles `--json`, `--help`, `--`-separated positionals.
 ## Invocation
 
 `npm run g -- show C5` is clumsy — the bare `--` confuses everyone eventually.
-Add a `bin` entry:
 
-```json
-"bin": { "cayley": "src/cli.ts" }
+**A `bin` entry pointing at `src/cli.ts` does not work** (codex and gemini both
+flagged this, and it was open question 5). The file has no shebang and still
+needs `--experimental-strip-types`, so the shell would try to interpret
+TypeScript. A shebang of `#!/usr/bin/env -S node --experimental-strip-types`
+would work on modern Linux/macOS but `env -S` is not portable — it fails on older
+coreutils and on Windows.
+
+**Use a `.mjs` shim:**
+
+```js
+#!/usr/bin/env node
+// bin/cayley.mjs
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const cli = resolve(dirname(fileURLToPath(import.meta.url)), "../src/cli.ts");
+const r = spawnSync(process.execPath, ["--experimental-strip-types", cli, ...process.argv.slice(2)],
+  { stdio: "inherit" });
+process.exit(r.status ?? 1);
 ```
 
-`npm link` then gives a plain `cayley show C5`. Keep `npm run g` as an alias for
-anyone who has not linked.
+```json
+"bin": { "cayley": "bin/cayley.mjs" }
+```
+
+Plain `.mjs`, plain shebang, works with `npm link` on every platform. `npm run g`
+stays as an alias for anyone who has not linked.
 
 ## Testing strategy
 
@@ -177,7 +236,17 @@ Layer 3 is the one that keeps the surface honest as it grows.
 6. Tests, three layers.
 7. Update README.
 
-## Open questions for review
+## Resolved (codex + gemini, round 1)
+
+1. **`commands.ts` is not over-engineering** — both reviewers, independently. It is required *now*, regardless of HTTP or MCP, because it is what makes the command layer unit-testable without spawning processes and what produces the `--json` payload.
+2. **`--json` exhaustive.** See above.
+3. **Unknown group is exit 1**, not 2. See above.
+4. **Normalisation is safe given a collision check at load.** See above.
+5. **`.mjs` shim, not a shebang'd `.ts`.** See above.
+6. **No stdin for `check`.** Explicit non-goal — the primary user works with files, and `-` would complicate error reporting (which filename does `GroupValidationError` name?) for a workflow nobody has.
+
+## Superseded open questions
+
 
 1. **Is a separate `commands.ts` over-engineering** for nine commands wrapping
    existing functions, given HTTP and MCP are speculative? The counter-argument
