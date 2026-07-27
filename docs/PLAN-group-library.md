@@ -53,6 +53,25 @@ The shape layer earns its place specifically because VS Code honours `$schema`
 natively: a JSON author gets red squiggles with no build and no run. That is the
 compile-time feel, delivered to someone who does not compile.
 
+**⚠ The relative path differs by directory depth** (round 2 finding):
+
+```
+groups/v4.group.json          →  "$schema": "../schema/group.schema.json"
+groups/drafts/q8.group.json   →  "$schema": "../../schema/group.schema.json"
+```
+
+Copying a library file into `drafts/` silently breaks its schema link — and
+`drafts/` is precisely where the hand-authoring happens, so the failure lands on
+the workflow that justified JSON Schema in the first place. Belt and braces:
+document both paths **and** add a `.vscode/settings.json` association so the
+schema resolves by glob regardless of depth:
+
+```json
+{ "json.schemas": [
+    { "fileMatch": ["**/*.group.json"], "url": "./schema/group.schema.json" }
+] }
+```
+
 ### 2. File format
 
 ```json
@@ -135,6 +154,9 @@ message teaches the axiom that was violated.
    audits itself as it grows. `groups/drafts/` is excluded.
 6. Add `npm run check <file>` (`src/check.ts`) — validates a single file and
    prints every remaining problem in domain language.
+   ⚠ `package.json` currently has `check` aliased to `main.ts`; that name must be
+   repointed or the new command silently runs the demo instead. (Round 2 review
+   hit exactly this.)
 7. Place the Q₈ stub in `groups/drafts/` with elements, identity and generators
    filled in and arrows empty, for the user to complete via the check loop.
 
@@ -219,7 +241,8 @@ cascading:
 3. domain shape                elements unique; identity ∈ elements;
                                generators ⊆ elements; every arrow map total
                                over elements; every target ∈ elements;
-                               every arrow map bijective
+                               every arrow map bijective;
+                               ⚑ arrows[g][identity] === g  (see below)
 4. reachability                generators actually generate — BFS covers all
 5. group laws                  closure, identity behaves, inverses exist,
                                associativity, Latin square
@@ -228,6 +251,29 @@ cascading:
 Phase 3's bijectivity check is worth its own note: an arrow map that is not a
 bijection is not a permutation, and catching it *there* produces a far better
 message than letting it surface later as a Latin-square failure.
+
+### ⚑ The labelling law: `arrows[g][identity] === g`
+
+Added after round 2. Without it, a file can label an arrow `i` while that arrow
+actually performs `j` — generate every element, satisfy closure, identity,
+inverses, associativity and the Latin square, and still be a **mislabelled
+diagram**. Every law would pass and every table cell would be wrong relative to
+the names on the page. That defeats the one thing this loader exists to protect.
+
+The rule is the learner's own, derived at the diagram on 2026-07-27 and then
+sharpened: *start at the identity, follow one arrow, and the node you land on
+names that arrow.* It holds because `e·g = g` — the identity is the unique node
+where "where I arrive" and "what I multiplied by" coincide. So it is not an
+arbitrary constraint; it is the definition of what an arrow label means.
+
+```text
+✗ c5.group.json: arrows.a leaves the identity "e" and lands on "a2", not "a".
+  An arrow labelled a means "multiply by a", so from the identity it must
+  land on a.
+```
+
+Note the order dependency: this must run in phase 3, *before* reachability and
+the laws, because those will happily succeed on a mislabelled file.
 
 ## Architectural constraint (from review)
 
