@@ -120,3 +120,29 @@ library audits itself as it grows.
 - [ ] render Cayley diagrams, not just tables
 - [ ] generate exercises — unlimited repetition on groups we choose
 - [ ] walk Carter ch. 5 (families) by generating C₃/C₄/C₅/C₆ and D₃/D₄/D₅ side by side
+
+## License
+
+MIT. See [LICENSE](LICENSE).
+
+## Relationship to Group Explorer
+
+[Group Explorer](https://github.com/nathancarter/group-explorer) is Nathan
+Carter and Ray Ellis's group-theory visualisation software, LGPL-3.0. Carter is
+also the author of *Visual Group Theory*, the book this project was built
+alongside — the book is effectively its manual.
+
+**This project contains none of its code.** Everything here is written from
+scratch, which is why MIT is available.
+
+Group Explorer ships a library of `.group` XML files. We deliberately do **not**
+import them, for a reason that is practical before it is legal: the families a
+learner needs — cyclic, dihedral, symmetric, alternating, direct products — are
+all *constructible from their definitions*. Generating them gives you any n,
+takes a few dozen lines, and teaches the construction. Importing a fixture
+library gives you someone else's answers.
+
+Where Group Explorer is genuinely useful to us is as a **cross-check**: an
+independent implementation to compare results against. If we ever do import
+anything, it will be mathematical facts only — a multiplication table is a fact,
+not an authored work — with clear attribution, and never the prose.
