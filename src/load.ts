@@ -290,6 +290,21 @@ export function validate(data: unknown): { group?: Group; issues: Issue[] } {
   return { group: g, issues: [] };
 }
 
+/**
+ * Freeze a group so the memoisation in group.ts is sound.
+ *
+ * words() and table() cache against the group object. That is only safe if the
+ * arrows cannot change afterwards — so make that true rather than hope for it.
+ */
+function freezeGroup(g: Group): Group {
+  for (const perm of Object.values(g.arrows)) Object.freeze(perm);
+  Object.freeze(g.arrows);
+  Object.freeze(g.elements);
+  Object.freeze(g.generators);
+  if (g.aliases) Object.freeze(g.aliases);
+  return Object.freeze(g);
+}
+
 /** Read one file. Throws GroupValidationError listing everything wrong with it. */
 export function loadGroup(path: string): Group {
   let parsed: unknown;
@@ -303,7 +318,7 @@ export function loadGroup(path: string): Group {
 
   const { group, issues } = validate(parsed);
   if (!group) throw new GroupValidationError(basename(path), issues);
-  return group;
+  return freezeGroup(group);
 }
 
 /** The library lives next to the source, not next to wherever you happen to be. */
@@ -319,7 +334,25 @@ export const LIBRARY_DIR = resolve(import.meta.dirname, "..", "groups");
  * process's cwd — otherwise running from any other directory dies with a raw
  * ENOENT, which is a miserable error for someone who is here to learn algebra.
  */
+/**
+ * Loaded libraries, by directory.
+ *
+ * Reading and fully validating the library is not expensive in absolute terms
+ * (~8ms for three groups) but it was happening on EVERY findGroup() call via a
+ * default parameter — measured at 960× the cost of passing the library in.
+ * Greedy loading is fine; greedy loading repeatedly is not.
+ */
+const libraryCache = new Map<string, Group[]>();
+
+/** Forget cached libraries. For tests, or after editing a file on disk. */
+export function clearLibraryCache(): void {
+  libraryCache.clear();
+}
+
 export function loadLibrary(dir: string = LIBRARY_DIR): Group[] {
+  const cached = libraryCache.get(dir);
+  if (cached) return cached;
+
   let files: string[];
   try {
     files = readdirSync(dir);
@@ -343,7 +376,9 @@ export function loadLibrary(dir: string = LIBRARY_DIR): Group[] {
   }
   if (failures.length) throw new LibraryValidationError(failures);
 
-  return groups.sort((a, b) => a.elements.length - b.elements.length || a.name.localeCompare(b.name));
+  const sorted = groups.sort((a, b) => a.elements.length - b.elements.length || a.name.localeCompare(b.name));
+  libraryCache.set(dir, sorted);
+  return sorted;
 }
 
 /** Find a group by its name or any of its aliases, case-insensitively. */

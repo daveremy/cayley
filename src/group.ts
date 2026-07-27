@@ -85,6 +85,18 @@ export type Group = {
 };
 
 // ── Derived structure ────────────────────────────────────────────────────────
+//
+// Everything below is derived from `arrows`, and derivation is not free:
+// multiply() needs a full BFS, and table() needs n² multiplies. Recomputing
+// those per call meant ~96 BFS traversals to run the checks on a FOUR-element
+// group, and would have been 28,224 BFS traversals per table at order 168.
+//
+// So both are memoised on the group object itself, via WeakMap — the cache dies
+// when the group does, no manual invalidation, no leak. This is sound because
+// loaded groups are frozen (see load.ts): arrows cannot change under the cache.
+
+const wordCache = new WeakMap<Group, Words>();
+const tableCache = new WeakMap<Group, Table>();
 
 /**
  * Give every element a WORD: the sequence of generators that walks from the
@@ -94,6 +106,14 @@ export type Group = {
  * Breadth-first, so each word is the shortest one.
  */
 export function words(g: Group): Words {
+  const hit = wordCache.get(g);
+  if (hit) return hit;
+  const computed = computeWords(g);
+  wordCache.set(g, computed);
+  return computed;
+}
+
+function computeWords(g: Group): Words {
   const found: Words = new Map([[g.identity, []]]);
   const queue: Element[] = [g.identity];
 
@@ -125,8 +145,16 @@ export function multiply(g: Group, x: Element, y: Element): Element {
   return here;
 }
 
-/** Every product, for every ordered pair. */
+/** Every product, for every ordered pair. Memoised — six checks share one build. */
 export function table(g: Group): Table {
+  const hit = tableCache.get(g);
+  if (hit) return hit;
+  const computed = computeTable(g);
+  tableCache.set(g, computed);
+  return computed;
+}
+
+function computeTable(g: Group): Table {
   const t: Table = {};
   for (const row of g.elements) {
     t[row] = {};

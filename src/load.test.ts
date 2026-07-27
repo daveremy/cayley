@@ -8,7 +8,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync } from "node:fs";
 
-import { findGroup, loadGroup, loadLibrary, validate } from "./load.ts";
+import { clearLibraryCache, findGroup, loadGroup, loadLibrary, validate } from "./load.ts";
 import type { Group } from "./group.ts";
 
 /** A valid C₄, to be broken in various ways below. */
@@ -258,5 +258,45 @@ describe("loadGroup errors name the file", () => {
 
   test("a missing library directory explains itself", () => {
     assert.throws(() => loadLibrary("/tmp/definitely-not-a-group-library"), /cannot read the group library/);
+  });
+});
+
+describe("loading is cached, and loaded groups are frozen", () => {
+  test("loadLibrary returns the same instance rather than re-reading", () => {
+    const a = loadLibrary();
+    const b = loadLibrary();
+    assert.equal(a, b, "second call should hit the cache, not the disk");
+  });
+
+  test("clearLibraryCache forces a genuine reload", () => {
+    const a = loadLibrary();
+    clearLibraryCache();
+    const b = loadLibrary();
+    assert.notEqual(a, b, "after clearing, the library should be read again");
+    assert.deepEqual(
+      a.map((g) => g.name),
+      b.map((g) => g.name),
+      "…and produce the same groups",
+    );
+  });
+
+  test("a loaded group cannot be mutated — the memo caches depend on it", () => {
+    const v4 = findGroup("V₄") as Group;
+    assert.ok(Object.isFrozen(v4));
+    assert.ok(Object.isFrozen(v4.arrows));
+    assert.ok(Object.isFrozen(v4.arrows.R));
+    assert.ok(Object.isFrozen(v4.elements));
+    assert.throws(() => {
+      (v4.arrows.R as Record<string, string>).N = "hacked";
+    }, TypeError);
+    assert.equal(v4.arrows.R.N, "R");
+  });
+
+  test("repeated findGroup with the default library is cheap after the first", () => {
+    findGroup("V₄"); // warm
+    const t0 = performance.now();
+    for (let i = 0; i < 200; i++) findGroup("V₄");
+    const perCall = (performance.now() - t0) / 200;
+    assert.ok(perCall < 0.05, `expected sub-0.05ms per call, got ${perCall.toFixed(3)}ms`);
   });
 });
