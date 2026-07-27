@@ -84,6 +84,32 @@ function checkShape(data: unknown): Issue[] {
   strArray("elements");
   strArray("generators");
 
+  // Optional metadata. Unvalidated metadata is still a crash waiting to happen:
+  // `"aliases": "Z4"` would sail through and then blow up in findGroup() with a
+  // TypeError instead of a validation message. The loader must not depend on the
+  // editor-only schema having been honoured.
+  if (d.aliases !== undefined && (!Array.isArray(d.aliases) || d.aliases.some((x) => typeof x !== "string"))) {
+    issues.push({
+      phase: 2,
+      message: `aliases must be an array of strings — e.g. ["Klein four-group", "C₂ × C₂"] — not ${typeof d.aliases}`,
+    });
+  }
+  for (const field of ["notes", "source"]) {
+    if (d[field] !== undefined && typeof d[field] !== "string") {
+      issues.push({ phase: 2, message: `${field} must be a string if present` });
+    }
+  }
+
+  // Catch typo'd field names. A misspelled "generator" or "alises" would
+  // otherwise be silently ignored, and the author would be left wondering why
+  // their edit had no effect. The JSON Schema sets additionalProperties: false;
+  // this keeps the runtime honest about the same rule.
+  const known = new Set(["$schema", "name", "aliases", "elements", "identity", "generators", "arrows", "notes", "source"]);
+  const unknown = Object.keys(d).filter((k) => !known.has(k));
+  if (unknown.length) {
+    issues.push({ phase: 2, message: `unknown field(s): ${list(unknown)} — check the spelling against schema/group.schema.json` });
+  }
+
   if (typeof d.arrows !== "object" || d.arrows === null || Array.isArray(d.arrows)) {
     issues.push({ phase: 2, message: "arrows must be an object keyed by generator" });
   } else {

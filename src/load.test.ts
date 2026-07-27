@@ -152,18 +152,81 @@ describe("phase 4 — generators must actually generate", () => {
 });
 
 describe("phase 5 — the group laws", () => {
+  // Reaching phase 5 with bad data is harder than it sounds: phase 3 already
+  // demands every generator be a permutation and obey the labelling law, and
+  // phase 4 demands they generate. The case below clears all of that and still
+  // fails, because the permutations generate a group LARGER than the node set —
+  // so the action is not simply transitive and the derived operation cannot be
+  // associative. Two different words for the same element disagree.
+  const notAGroup = {
+    name: "permutations that generate too much",
+    elements: ["e", "a", "b", "c"],
+    identity: "e",
+    generators: ["a", "b"],
+    arrows: {
+      a: { e: "a", a: "b", b: "c", c: "e" }, // 4-cycle
+      b: { e: "b", b: "a", a: "c", c: "e" }, // a different 4-cycle
+    },
+  };
+
+  test("clears phases 2–4 — the arrows really are permutations that generate", () => {
+    for (const gen of ["a", "b"] as const) {
+      const targets = Object.values(notAGroup.arrows[gen]);
+      assert.equal(new Set(targets).size, 4, `arrows.${gen} is not a permutation`);
+      assert.equal(notAGroup.arrows[gen].e, gen, "labelling law should hold");
+    }
+  });
+
   test("catches a non-associative operation", () => {
-    // Three elements, arrows form a permutation and reach everything, but the
-    // resulting operation is not a group.
-    const d = {
-      name: "not a group",
+    assert.match(problems(notAGroup), /not associative — \(a·a\)·c = "e" but a·\(a·c\) = "b"/);
+  });
+
+  test("catches a missing inverse", () => {
+    assert.match(problems(notAGroup), /"a" has no inverse — nothing undoes it/);
+  });
+
+  test("control: a genuine C₃ passes every phase", () => {
+    const c3 = {
+      name: "C₃",
       elements: ["e", "x", "y"],
       identity: "e",
       generators: ["x"],
       arrows: { x: { e: "x", x: "y", y: "e" } },
     };
-    // this one IS C₃ and should pass — a control for the test above
-    assert.equal(problems(d), "");
+    assert.equal(problems(c3), "");
+  });
+});
+
+describe("phase 2 — optional metadata is validated too", () => {
+  test("aliases must be an array of strings, not a bare string", () => {
+    const d = good();
+    d.aliases = "Z4";
+    assert.match(problems(d), /aliases must be an array of strings/);
+  });
+
+  test("aliases must not contain non-strings", () => {
+    const d = good();
+    d.aliases = [1];
+    assert.match(problems(d), /aliases must be an array of strings/);
+  });
+
+  test("a malformed alias is rejected at load, not left to crash findGroup later", () => {
+    const d = good();
+    d.aliases = [1];
+    const { group } = validate(d);
+    assert.equal(group, undefined, "a file with malformed aliases must not be handed back as a Group");
+  });
+
+  test("notes and source must be strings", () => {
+    const d = good();
+    d.notes = 42;
+    assert.match(problems(d), /notes must be a string if present/);
+  });
+
+  test("a typo'd field name is reported rather than silently ignored", () => {
+    const d = good();
+    d.alises = ["oops"];
+    assert.match(problems(d), /unknown field\(s\): "alises"/);
   });
 });
 
