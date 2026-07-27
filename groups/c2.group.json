@@ -1,0 +1,13 @@
+{
+  "$schema": "../schema/group.schema.json",
+  "name": "C₂",
+  "aliases": ["C2", "ℤ/2", "Z2", "the signs", "cyclic group of order 2"],
+  "elements": ["1", "-1"],
+  "identity": "1",
+  "generators": ["-1"],
+  "arrows": {
+    "-1": { "1": "-1", "-1": "1" }
+  },
+  "notes": "The two signs under multiplication, and the smallest group with anything to say. One switch: flip it twice and you are back. Every group of order 2 is this one. Its elements start with a dash, which makes it the fixture that keeps the CLI honest about parsing element names that look like flags.",
+  "source": "hand-authored"
+}

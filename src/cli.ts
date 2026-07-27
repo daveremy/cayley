@@ -8,8 +8,6 @@
 //   1  domain failure   — well-formed command, operation did not succeed
 //   2  usage error      — the invocation itself was wrong
 
-import { parseArgs } from "node:util";
-
 import * as cmd from "./commands.ts";
 import { COMMANDS } from "./commands.ts";
 import { DomainError, GroupValidationError, LibraryValidationError, UnknownGroupError, UsageError } from "./errors.ts";
@@ -168,21 +166,44 @@ function run(command: string, args: string[], json: boolean): void {
 
 // ── entry ────────────────────────────────────────────────────────────────────
 
-try {
-  const { values, positionals } = parseArgs({
-    args: process.argv.slice(2),
-    options: { json: { type: "boolean", default: false }, help: { type: "boolean", short: "h", default: false } },
-    allowPositionals: true,
-    strict: true,
-  });
+/**
+ * Split flags from positionals.
+ *
+ * node:util.parseArgs cannot be used here, and the reason is mathematical rather
+ * than stylistic: HALF OF Q₈'S ELEMENTS START WITH A DASH — -1, -i, -j, -k. In
+ * strict mode parseArgs claims any dash-led token as an option, so
+ * `cayley word Q8 -1` fails as "unknown option '-1'" and the user is told to
+ * write `-- "-1"`, which nobody should have to know.
+ *
+ * The flag set here is small and closed, so an exact-match partition is both
+ * simpler and correct. Anything that is not one of these known flags is a
+ * positional, dash or no dash.
+ */
+function partition(argv: string[]): { json: boolean; help: boolean; positionals: string[] } {
+  const FLAGS = new Set(["--json", "--help", "-h"]);
+  const positionals: string[] = [];
+  let json = false;
+  let help = false;
 
+  for (const a of argv) {
+    if (a === "--json") json = true;
+    else if (a === "--help" || a === "-h") help = true;
+    else if (a === "--") continue; // tolerated, no longer needed
+    else if (a.startsWith("--") && !FLAGS.has(a)) throw new UsageError(`unknown option "${a}"`);
+    else positionals.push(a);
+  }
+  return { json, help, positionals };
+}
+
+try {
+  const { json, help, positionals } = partition(process.argv.slice(2));
   const [command, ...rest] = positionals;
 
-  if (values.help || !command) {
+  if (help || !command) {
     console.log(HELP);
     process.exit(0);
   }
-  run(command, rest, values.json);
+  run(command, rest, json);
 } catch (e) {
   if (e instanceof UnknownGroupError) {
     console.error(`\n${e.message}\n\nthe library has:`);
@@ -215,11 +236,6 @@ try {
   if (e instanceof UsageError) {
     console.error(`\n${e.message}`);
     console.error(`\ntry one of: ${COMMANDS.join(", ")}   (cayley --help)\n`);
-    process.exit(2);
-  }
-  // parseArgs throws plain Errors for bad flags — that is a usage problem too
-  if (e instanceof Error && /Unknown option|option .* argument/i.test(e.message)) {
-    console.error(`\n${e.message}\n`);
     process.exit(2);
   }
   throw e;

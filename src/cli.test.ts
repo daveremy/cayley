@@ -188,6 +188,27 @@ describe("the CLI process", () => {
     assert.equal(r.code, 2);
   });
 
+  // ⚑ Half of Q₈'s elements start with a dash: -1, -i, -j, -k. An arg parser
+  // that claims dash-led tokens as flags makes those elements unreachable.
+  // C₂ = {1, -1} is the fixture that keeps this honest.
+  test("dash-led element names are positionals, not flags", () => {
+    const r = cli("word", "C2", "-1");
+    assert.equal(r.code, 0, `"-1" was swallowed as a flag: ${r.stderr}`);
+    assert.match(r.stdout, /-1 = -1/);
+  });
+
+  test("multiplying two dash-led elements works", () => {
+    const r = cli("mul", "C2", "-1", "-1", "--json");
+    assert.equal(r.code, 0);
+    assert.equal(JSON.parse(r.stdout).product, "1");
+  });
+
+  test("a dash-led name that is NOT an element is a domain error, not a usage error", () => {
+    const r = cli("word", "C5", "-1");
+    assert.equal(r.code, 1, "should reach the domain layer, not be rejected by the parser");
+    assert.match(r.stderr, /is not an element of C₅/);
+  });
+
   test("an invalid group file exits 1 with the phase that failed", () => {
     const r = cli("check", "groups/drafts/q8.group.json");
     assert.equal(r.code, 1);
