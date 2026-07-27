@@ -1,133 +1,226 @@
-// The front door.
+// The CLI adapter. Formatting and exit codes. No mathematics lives here.
 //
-//   npm run g -- list                    every group in the library
-//   npm run g -- show C₅                 one group, in detail
-//   npm run g -- table V₄                the multiplication table
-//   npm run g -- mul C₅ a2 a3            one product
-//   npm run g -- word C₅ a3              the path from the identity
-//   npm run g -- diff C₄ V₄              two groups side by side
+// Everything below either calls a function in commands.ts and prints the result,
+// or maps an error to an exit code. If you find yourself computing something in
+// this file, it belongs in commands.ts.
 //
-// Group names are alias-aware: "V₄", "Klein four-group", "the rectangle group"
-// and "C₂ × C₂" all find the same object.
+//   0  success
+//   1  domain failure   — well-formed command, operation did not succeed
+//   2  usage error      — the invocation itself was wrong
 
-import { findGroup, loadLibrary } from "./load.ts";
-import {
-  allSelfInverse,
-  isAbelian,
-  multiply,
-  printTable,
-  squares,
-  table,
-  words,
-} from "./group.ts";
-import type { Group } from "./group.ts";
+import { parseArgs } from "node:util";
 
-const [command, ...args] = process.argv.slice(2);
+import * as cmd from "./commands.ts";
+import { COMMANDS } from "./commands.ts";
+import { DomainError, GroupValidationError, LibraryValidationError, UnknownGroupError, UsageError } from "./errors.ts";
 
-/** Look a group up, or exit with something readable. */
-function need(name: string): Group {
-  const g = findGroup(name);
-  if (g) return g;
-  console.error(`\nno group called "${name}".\n`);
-  console.error("the library has:");
-  for (const x of loadLibrary()) {
-    console.error(`  ${x.name.padEnd(6)} ${(x.aliases ?? []).join(", ")}`);
+const HELP = `
+  cayley — group theory from the command line
+
+  cayley list                      every group in the library
+  cayley show <group>              one group, in full
+  cayley table <group>             the multiplication table
+  cayley mul <group> <x> <y>       one product, and the path walked
+  cayley word <group> <element>    an element's path from the identity
+  cayley order <group> [element]   element orders
+  cayley diff <a> <b>              two groups side by side
+  cayley check <file>              is this file a group?
+
+  --json    machine-readable output, for scripting or piping to jq
+  --help    this
+
+  Group names are forgiving: C5, c5, C₅ and "the rectangle group" all work.
+`;
+
+// ── formatters ───────────────────────────────────────────────────────────────
+
+const pad = (s: string, n: number) => s.padEnd(n);
+const yn = (b: boolean) => (b ? "yes" : "no");
+
+function printList(r: ReturnType<typeof cmd.list>): void {
+  console.log("");
+  const w = Math.max(...r.groups.map((g) => g.name.length)) + 2;
+  for (const g of r.groups) {
+    console.log(
+      `  ${pad(g.name, w)}order ${pad(String(g.order), 4)}` +
+        `${pad(g.abelian ? "abelian" : "non-abelian", 14)}${g.aliases.slice(0, 3).join(", ")}`,
+    );
   }
-  console.error("");
-  process.exit(1);
-}
-
-/** An element's order: how many times you press it to get home. */
-function order(g: Group, x: string): number {
-  let n = 1;
-  let cur = x;
-  while (cur !== g.identity) {
-    cur = multiply(g, cur, x);
-    n++;
-  }
-  return n;
-}
-
-function describe(g: Group): void {
-  console.log(`\n${g.name}`);
-  if (g.aliases?.length) console.log(`  also called   ${g.aliases.join(", ")}`);
-  console.log(`  order         ${g.elements.length}`);
-  console.log(`  elements      ${g.elements.join(", ")}`);
-  console.log(`  identity      ${g.identity}`);
-  console.log(`  generators    ${g.generators.join(", ")}   (${g.generators.length} needed)`);
-  console.log(`  abelian       ${isAbelian(g)}`);
-  console.log(`  all self-inverse  ${allSelfInverse(g)}`);
-  console.log(`  element orders    ${g.elements.map((x) => `${x}:${order(g, x)}`).join("  ")}`);
-  console.log(`  words         ${[...words(g)].map(([e, w]) => `${e}=${w.join("·") || "(e)"}`).join("  ")}`);
-  if (g.notes) console.log(`\n  ${g.notes}`);
   console.log("");
 }
 
-switch (command) {
-  case "list": {
-    console.log("");
-    for (const g of loadLibrary()) {
-      console.log(
-        `  ${g.name.padEnd(5)} order ${String(g.elements.length).padEnd(3)} ` +
-          `${isAbelian(g) ? "abelian    " : "non-abelian"}  ${(g.aliases ?? []).slice(0, 3).join(", ")}`,
+function printDetail(d: cmd.Detail): void {
+  console.log(`\n${d.name}`);
+  if (d.aliases.length) console.log(`  also called    ${d.aliases.join(", ")}`);
+  console.log(`  order          ${d.order}`);
+  console.log(`  elements       ${d.elements.join(", ")}`);
+  console.log(`  identity       ${d.identity}`);
+  console.log(`  generators     ${d.generators.join(", ")}   (${d.generators.length} needed)`);
+  console.log(`  abelian        ${yn(d.abelian)}`);
+  console.log(`  element orders ${Object.entries(d.elementOrders).map(([k, v]) => `${k}:${v}`).join("  ")}`);
+  console.log(`  squares        ${Object.entries(d.squares).map(([k, v]) => `${k}²=${v}`).join("  ")}`);
+  console.log(`  words          ${Object.entries(d.words).map(([k, v]) => `${k}=${v.join("·") || "(e)"}`).join("  ")}`);
+  const p = d.properties;
+  console.log(
+    `\n  closed ${yn(p.closed)} · identity ${yn(p.identityWorks)} · inverses ${yn(p.everyElementHasInverse)}` +
+      ` · associative ${yn(p.associative)} · latin square ${yn(p.latinSquare)}`,
+  );
+  if (d.notes) console.log(`\n  ${d.notes}`);
+  console.log("");
+}
+
+function printTable(r: ReturnType<typeof cmd.tableOf>): void {
+  const w = Math.max(...r.elements.map((e) => e.length)) + 2;
+  console.log(`\n${r.name}`);
+  console.log(pad("·", w) + r.elements.map((e) => pad(e, w)).join(""));
+  for (const row of r.elements) {
+    console.log(pad(row, w) + r.elements.map((col) => pad(r.rows[row][col], w)).join(""));
+  }
+  console.log("");
+}
+
+function printDiff(r: ReturnType<typeof cmd.diff>): void {
+  const L = 26;
+  console.log(`\n  ${pad("", L)}${pad(r.a.name, 16)}${r.b.name}`);
+  const row = (label: string, l: unknown, r2: unknown) =>
+    console.log(`  ${pad(label, L)}${pad(String(l), 16)}${String(r2)}`);
+  row("order", r.a.order, r.b.order);
+  row("generators needed", r.a.generators.length, r.b.generators.length);
+  row("abelian", yn(r.a.abelian), yn(r.b.abelian));
+  row("all self-inverse", yn(r.a.allSelfInverse), yn(r.b.allSelfInverse));
+  row("largest element order", r.a.largestElementOrder, r.b.largestElementOrder);
+
+  console.log(`\n  diagonals (every element squared):`);
+  for (const g of [r.a, r.b]) {
+    console.log(`    ${pad(g.name, 6)}${Object.entries(g.squares).map(([k, v]) => `${k}²=${v}`).join("  ")}`);
+  }
+  console.log(
+    r.distinguishedBy.length
+      ? `\n  ${r.sameOrder ? "Same order, different groups." : "Different groups."} ` +
+          `Told apart by: ${r.distinguishedBy.join(", ")}.\n`
+      : `\n  Nothing here tells them apart — they may be isomorphic.\n`,
+  );
+}
+
+// ── the adapter ──────────────────────────────────────────────────────────────
+
+function run(command: string, args: string[], json: boolean): void {
+  const arg = (i: number, what: string): string => {
+    const v = args[i];
+    if (v === undefined) throw new UsageError(`${command} needs ${what}`);
+    return v;
+  };
+  const out = (data: unknown, print: () => void) => (json ? console.log(JSON.stringify(data, null, 2)) : print());
+
+  switch (command) {
+    case "list": {
+      const r = cmd.list();
+      return out(r, () => printList(r));
+    }
+    case "show": {
+      const r = cmd.show(arg(0, "a group name"));
+      return out(r, () => printDetail(r));
+    }
+    case "table": {
+      const r = cmd.tableOf(arg(0, "a group name"));
+      return out(r, () => printTable(r));
+    }
+    case "mul": {
+      const r = cmd.mul(arg(0, "a group name"), arg(1, "two elements"), arg(2, "a second element"));
+      return out(r, () => {
+        console.log(`\n  ${r.x} · ${r.y} = ${r.product}`);
+        console.log(`  (start at ${r.x}, follow ${r.path.length ? r.path.join(" then ") : "no arrows"})\n`);
+      });
+    }
+    case "word": {
+      const r = cmd.word(arg(0, "a group name"), arg(1, "an element"));
+      return out(r, () =>
+        console.log(
+          `\n  ${r.element} = ${r.isIdentity ? "(the empty path — it IS the identity)" : r.path.join(" · ")}\n`,
+        ),
       );
     }
-    console.log("");
-    break;
+    case "order": {
+      const r = cmd.orders(arg(0, "a group name"), args[1]);
+      return out(r, () => {
+        console.log("");
+        for (const [x, n] of Object.entries(r.orders)) {
+          console.log(`  ${pad(x, 6)}order ${n}${n === 1 ? "   (the identity)" : ""}`);
+        }
+        console.log("");
+      });
+    }
+    case "diff": {
+      const r = cmd.diff(arg(0, "two group names"), arg(1, "a second group name"));
+      return out(r, () => printDiff(r));
+    }
+    case "check": {
+      const r = cmd.check(arg(0, "a file path"));
+      return out(r, () => {
+        console.log(`\n✓ ${r.file} is a group.`);
+        printDetail(r);
+      });
+    }
+    default:
+      throw new UsageError(`unknown command "${command}"`);
   }
+}
 
-  case "show":
-    describe(need(args[0]));
-    break;
+// ── entry ────────────────────────────────────────────────────────────────────
 
-  case "table":
-    printTable(need(args[0]));
-    console.log("");
-    break;
+try {
+  const { values, positionals } = parseArgs({
+    args: process.argv.slice(2),
+    options: { json: { type: "boolean", default: false }, help: { type: "boolean", short: "h", default: false } },
+    allowPositionals: true,
+    strict: true,
+  });
 
-  case "mul": {
-    const g = need(args[0]);
-    const [x, y] = args.slice(1);
-    const path = words(g).get(y);
-    console.log(`\n  ${x} · ${y} = ${multiply(g, x, y)}`);
-    console.log(`  (start at ${x}, follow ${path?.length === 0 ? "no arrows" : path?.join(" then ")})\n`);
-    break;
+  const [command, ...rest] = positionals;
+
+  if (values.help || !command) {
+    console.log(HELP);
+    process.exit(0);
   }
-
-  case "word": {
-    const g = need(args[0]);
-    const w = words(g).get(args[1]);
-    console.log(`\n  ${args[1]} = ${w?.join(" · ") || "(the empty path — it IS the identity)"}\n`);
-    break;
+  run(command, rest, values.json);
+} catch (e) {
+  if (e instanceof UnknownGroupError) {
+    console.error(`\n${e.message}\n\nthe library has:`);
+    for (const name of e.known) console.error(`  ${name}`);
+    console.error("");
+    process.exit(1);
   }
-
-  case "diff": {
-    const a = need(args[0]);
-    const b = need(args[1]);
-    console.log(`\n  ${"".padEnd(24)}${a.name.padEnd(14)}${b.name}`);
-    const row = (label: string, l: unknown, r: unknown) =>
-      console.log(`  ${label.padEnd(24)}${String(l).padEnd(14)}${String(r)}`);
-    row("order", a.elements.length, b.elements.length);
-    row("generators needed", a.generators.length, b.generators.length);
-    row("abelian", isAbelian(a), isAbelian(b));
-    row("all self-inverse", allSelfInverse(a), allSelfInverse(b));
-    row("largest element order", Math.max(...a.elements.map((x) => order(a, x))), Math.max(...b.elements.map((x) => order(b, x))));
-    console.log(`\n  diagonals (every element squared):`);
-    console.log(`    ${a.name}  ${Object.entries(squares(a)).map(([k, v]) => `${k}²=${v}`).join("  ")}`);
-    console.log(`    ${b.name}  ${Object.entries(squares(b)).map(([k, v]) => `${k}²=${v}`).join("  ")}\n`);
-    break;
+  // Validation errors carry structured issues, so render the phase that failed.
+  // The phase is not noise: it says which layer rejected the file, and therefore
+  // what kind of problem it is — shape, domain shape, reachability, or the laws.
+  if (e instanceof GroupValidationError) {
+    console.error(`\n✗ ${e.file} — not a group yet. ${e.issues.length} problem(s):\n`);
+    for (const i of e.issues) console.error(`  [phase ${i.phase}] ${i.message}`);
+    console.error("");
+    process.exit(1);
   }
-
-  default:
-    console.log(`
-  npm run g -- list                 every group in the library
-  npm run g -- show C₅              one group, in detail
-  npm run g -- table V₄             the multiplication table
-  npm run g -- mul C₅ a2 a3         one product, and the path walked
-  npm run g -- word C₅ a3           an element's path from the identity
-  npm run g -- diff C₄ V₄           two groups side by side
-
-  names are alias-aware — "V₄", "Klein four-group", "the rectangle group"
-  and "C₂ × C₂" all find the same group.
-`);
+  if (e instanceof LibraryValidationError) {
+    console.error(`\n✗ the group library has ${e.failures.length} bad file(s):\n`);
+    for (const f of e.failures) {
+      console.error(`  ${f.file}`);
+      for (const i of f.issues) console.error(`    [phase ${i.phase}] ${i.message}`);
+    }
+    console.error("");
+    process.exit(1);
+  }
+  if (e instanceof DomainError) {
+    console.error(`\n${e.message}\n`);
+    process.exit(1);
+  }
+  if (e instanceof UsageError) {
+    console.error(`\n${e.message}`);
+    console.error(`\ntry one of: ${COMMANDS.join(", ")}   (cayley --help)\n`);
+    process.exit(2);
+  }
+  // parseArgs throws plain Errors for bad flags — that is a usage problem too
+  if (e instanceof Error && /Unknown option|option .* argument/i.test(e.message)) {
+    console.error(`\n${e.message}\n`);
+    process.exit(2);
+  }
+  throw e;
 }

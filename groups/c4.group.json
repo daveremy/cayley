@@ -1,12 +1,29 @@
 {
   "$schema": "../schema/group.schema.json",
   "name": "C₄",
-  "aliases": ["ℤ/4", "Z4", "cyclic group of order 4"],
-  "elements": ["e", "r", "r2", "r3"],
+  "aliases": [
+    "C4",
+    "ℤ/4",
+    "Z4",
+    "cyclic group of order 4"
+  ],
+  "elements": [
+    "e",
+    "r",
+    "r2",
+    "r3"
+  ],
   "identity": "e",
-  "generators": ["r"],
+  "generators": [
+    "r"
+  ],
   "arrows": {
-    "r": { "e": "r", "r": "r2", "r2": "r3", "r3": "e" }
+    "r": {
+      "e": "r",
+      "r": "r2",
+      "r2": "r3",
+      "r3": "e"
+    }
   },
   "notes": "The four rotations of a square: 0°, 90°, 180°, 270°. Same size as V₄ and NOT the same group — r has order 4, so the diagonal of its table is not all identity. One generator suffices.",
   "source": "hand-authored"

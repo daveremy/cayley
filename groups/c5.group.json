@@ -1,12 +1,31 @@
 {
   "$schema": "../schema/group.schema.json",
   "name": "C₅",
-  "aliases": ["ℤ/5", "Z5", "cyclic group of order 5"],
-  "elements": ["e", "a", "a2", "a3", "a4"],
+  "aliases": [
+    "C5",
+    "ℤ/5",
+    "Z5",
+    "cyclic group of order 5"
+  ],
+  "elements": [
+    "e",
+    "a",
+    "a2",
+    "a3",
+    "a4"
+  ],
   "identity": "e",
-  "generators": ["a"],
+  "generators": [
+    "a"
+  ],
   "arrows": {
-    "a": { "e": "a", "a": "a2", "a2": "a3", "a3": "a4", "a4": "e" }
+    "a": {
+      "e": "a",
+      "a": "a2",
+      "a2": "a3",
+      "a3": "a4",
+      "a4": "e"
+    }
   },
   "notes": "One generator, one ring. Rotations of a regular pentagon. The multiplication table for this group was built by hand in a spreadsheet on 2026-07-26 and verified cell by cell; it is the ground-truth fixture the test suite checks against.",
   "source": "hand-authored — Carter, Visual Group Theory, exercise 4.6(a)"

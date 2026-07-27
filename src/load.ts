@@ -20,34 +20,18 @@ import { basename, join, resolve } from "node:path";
 
 import { table, words } from "./group.ts";
 import type { Element, Generator, Group, Permutation } from "./group.ts";
+import {
+  AmbiguousNameError,
+  GroupValidationError,
+  LibraryValidationError,
+  type Issue,
+} from "./errors.ts";
 
-/** One thing wrong with one file. */
-export type Issue = { phase: number; message: string };
-
-export class GroupValidationError extends Error {
-  // Written longhand rather than as parameter properties: Node's strip-only
-  // TypeScript mode erases types but cannot emit code, so `constructor(readonly
-  // file: string)` is unsupported. Same reason enums and decorators are out.
-  file: string;
-  issues: Issue[];
-
-  constructor(file: string, issues: Issue[]) {
-    super(`${file}: ${issues.length} problem(s)\n${issues.map((i) => `  ✗ ${i.message}`).join("\n")}`);
-    this.name = "GroupValidationError";
-    this.file = file;
-    this.issues = issues;
-  }
-}
-
-export class LibraryValidationError extends Error {
-  failures: GroupValidationError[];
-
-  constructor(failures: GroupValidationError[]) {
-    super(`${failures.length} file(s) failed validation:\n\n${failures.map((f) => f.message).join("\n\n")}`);
-    this.name = "LibraryValidationError";
-    this.failures = failures;
-  }
-}
+// Re-exported so existing importers keep working; they are defined in errors.ts
+// because load.ts and commands.ts both need them and neither may depend on the
+// other. See the comment at the top of errors.ts.
+export { AmbiguousNameError, GroupValidationError, LibraryValidationError };
+export type { Issue };
 
 const q = (s: string) => JSON.stringify(s);
 const list = (xs: string[]) => xs.map(q).join(", ");
@@ -381,10 +365,62 @@ export function loadLibrary(dir: string = LIBRARY_DIR): Group[] {
   return sorted;
 }
 
-/** Find a group by its name or any of its aliases, case-insensitively. */
+/**
+ * Fold an identifier to a comparable form.
+ *
+ * Nobody is going to type "C₅" dozens of times a day — U+2085 is not on a
+ * keyboard. So subscript and superscript digits fold to ASCII, spaces and the
+ * usual separators go, and case is ignored. "C₅", "C5", "c 5" and "c-5" all
+ * arrive at the same place.
+ */
+export function normalise(s: string): string {
+  const SUB = "₀₁₂₃₄₅₆₇₈₉";
+  const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+  return [...s.trim().toLowerCase()]
+    .map((ch) => {
+      const sub = SUB.indexOf(ch);
+      if (sub >= 0) return String(sub);
+      const sup = SUP.indexOf(ch);
+      if (sup >= 0) return String(sup);
+      return ch;
+    })
+    .join("")
+    .replace(/[\s_\-]/g, "");
+}
+
+const indexCache = new WeakMap<Group[], Map<string, Group>>();
+
+/**
+ * Build the normalised lookup, refusing ambiguity.
+ *
+ * The invariant is CROSS-GROUP only. Two identifiers may normalise alike as
+ * long as they name the same group — that is exactly what an alias is, and the
+ * naive version of this rule would reject "C₅" alongside its own alias "C5".
+ * What must never happen is one normalised key resolving to two different files.
+ */
+function index(library: Group[]): Map<string, Group> {
+  const hit = indexCache.get(library);
+  if (hit) return hit;
+
+  const map = new Map<string, Group>();
+  for (const g of library) {
+    for (const id of [g.name, ...(g.aliases ?? [])]) {
+      const key = normalise(id);
+      const existing = map.get(key);
+      if (existing && existing !== g) throw new AmbiguousNameError(key, [existing.name, g.name]);
+      map.set(key, g);
+    }
+  }
+  indexCache.set(library, map);
+  return map;
+}
+
+/**
+ * Find a group by name or alias, forgiving about how it was typed.
+ *
+ * Returns undefined rather than throwing — callers that want an error get to
+ * choose its wording. commands.ts turns this into UnknownGroupError.
+ */
 export function findGroup(nameOrAlias: string, library = loadLibrary()): Group | undefined {
-  const want = nameOrAlias.trim().toLowerCase();
-  return library.find(
-    (g) => g.name.toLowerCase() === want || (g.aliases ?? []).some((a) => a.toLowerCase() === want),
-  );
+  return index(library).get(normalise(nameOrAlias));
 }
