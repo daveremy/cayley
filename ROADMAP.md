@@ -14,6 +14,7 @@ keeps the reasoning; the issues keep the state.
 | [7](https://github.com/daveremy/cayley/issues/7) | Aggregate errors across phases | `hardening` |
 | [8](https://github.com/daveremy/cayley/issues/8) | `isAssociative` is O(n³) | `hardening` |
 | [9](https://github.com/daveremy/cayley/issues/9) | Lazy library index | `hardening` |
+| [10](https://github.com/daveremy/cayley/issues/10) | Host it, with a strong API and MCP | `library` |
 
 ## Next up
 
