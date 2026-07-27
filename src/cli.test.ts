@@ -203,6 +203,20 @@ describe("the CLI process", () => {
     assert.equal(JSON.parse(r.stdout).product, "1");
   });
 
+  test("-- means everything after it is positional, as POSIX says", () => {
+    // Pathological but legal: an element literally named "--json". Without
+    // honouring "--" there would be no way to name it at all.
+    const r = cli("word", "C5", "--", "--json");
+    assert.equal(r.code, 1, "should reach the domain layer and report an unknown element");
+    assert.match(r.stderr, /"--json" is not an element/);
+  });
+
+  test("flags before -- still work", () => {
+    const r = cli("mul", "C5", "--json", "--", "a2", "a3");
+    assert.equal(r.code, 0);
+    assert.equal(JSON.parse(r.stdout).product, "e");
+  });
+
   test("a dash-led name that is NOT an element is a domain error, not a usage error", () => {
     const r = cli("word", "C5", "-1");
     assert.equal(r.code, 1, "should reach the domain layer, not be rejected by the parser");

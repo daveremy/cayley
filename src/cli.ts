@@ -178,17 +178,23 @@ function run(command: string, args: string[], json: boolean): void {
  * The flag set here is small and closed, so an exact-match partition is both
  * simpler and correct. Anything that is not one of these known flags is a
  * positional, dash or no dash.
+ *
+ * `--` still means what POSIX says it means: everything after it is a positional,
+ * no exceptions. Needed for the pathological but legal case of an element or a
+ * file path literally named "--json".
  */
 function partition(argv: string[]): { json: boolean; help: boolean; positionals: string[] } {
   const FLAGS = new Set(["--json", "--help", "-h"]);
   const positionals: string[] = [];
   let json = false;
   let help = false;
+  let literal = false; // set once "--" is seen; everything after is positional
 
   for (const a of argv) {
-    if (a === "--json") json = true;
+    if (literal) positionals.push(a);
+    else if (a === "--") literal = true;
+    else if (a === "--json") json = true;
     else if (a === "--help" || a === "-h") help = true;
-    else if (a === "--") continue; // tolerated, no longer needed
     else if (a.startsWith("--") && !FLAGS.has(a)) throw new UsageError(`unknown option "${a}"`);
     else positionals.push(a);
   }
