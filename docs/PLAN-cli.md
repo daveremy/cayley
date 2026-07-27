@@ -153,9 +153,25 @@ export class UnknownElementError extends DomainError {}
 export class UsageError extends Error {}           // → exit 2
 ```
 
-`GroupValidationError` moves there too and extends `DomainError`. The adapter is
-then a single try/catch with two branches, and the same errors map cleanly onto
-HTTP 404 vs 400 later.
+**Both existing validation errors move there** (codex, round 4 — the first draft
+named only the singular one):
+
+```
+DomainError
+├── UnknownGroupError
+├── UnknownElementError
+├── GroupValidationError      one file is not a group
+└── LibraryValidationError    one or more files in the library are not groups
+```
+
+`LibraryValidationError` is the easier one to forget and the more likely to fire
+— *every* command calls `loadLibrary()`, so a single bad file in `groups/` makes
+it the failure mode for the entire CLI. Leaving it outside the hierarchy would
+have surfaced it as an unhandled exception with a stack trace, which is precisely
+the failure quality we already rejected for the `ENOENT` case.
+
+The adapter is then a single try/catch with two branches, and the same errors map
+cleanly onto HTTP 404 vs 400 later.
 
 ## ⚑ Typeability — a real defect, not polish
 
