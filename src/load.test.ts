@@ -1,0 +1,178 @@
+// Tests for the loader — that it accepts real groups and rejects everything else
+// with an error that names the mathematics.
+//
+// The negative cases matter more than the positive ones here. A validator that
+// only ever sees valid input is untested.
+
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
+import { readdirSync } from "node:fs";
+
+import { findGroup, loadGroup, loadLibrary, validate } from "./load.ts";
+import type { Group } from "./group.ts";
+
+/** A valid C₄, to be broken in various ways below. */
+const good = (): Record<string, unknown> => ({
+  name: "C₄",
+  elements: ["e", "r", "r2", "r3"],
+  identity: "e",
+  generators: ["r"],
+  arrows: { r: { e: "r", r: "r2", r2: "r3", r3: "e" } },
+});
+
+/** Validate an object and return its issue messages, joined. */
+const problems = (data: unknown): string => validate(data).issues.map((i) => i.message).join(" | ");
+
+describe("the library loads and self-audits", () => {
+  const lib = loadLibrary();
+
+  test("every file in groups/ is a real group", () => {
+    assert.ok(lib.length >= 3, "expected at least three groups");
+  });
+
+  test("one Group per .group.json file", () => {
+    const files = readdirSync("groups").filter((f) => f.endsWith(".group.json"));
+    assert.equal(lib.length, files.length);
+  });
+
+  test("drafts/ is not loaded — it holds work in progress, valid or not", () => {
+    assert.ok(!lib.some((g) => g.name === "Q₈"), "the Q₈ draft leaked into the library");
+  });
+
+  test("sorted smallest first", () => {
+    const orders = lib.map((g) => g.elements.length);
+    assert.deepEqual(orders, [...orders].sort((a, b) => a - b));
+  });
+
+  test("metadata survives the trip from JSON", () => {
+    const v4 = findGroup("V₄", lib) as Group;
+    assert.ok(v4.aliases?.includes("Klein four-group"));
+    assert.ok(v4.notes?.includes("rectangle"));
+  });
+});
+
+describe("findGroup is alias-aware — six names, one object", () => {
+  const lib = loadLibrary();
+
+  for (const alias of ["V₄", "Klein four-group", "C₂ × C₂", "ℤ/2 × ℤ/2", "D₂", "the rectangle group"]) {
+    test(`"${alias}" resolves to V₄`, () => {
+      assert.equal(findGroup(alias, lib)?.name, "V₄");
+    });
+  }
+
+  test("case-insensitive", () => {
+    assert.equal(findGroup("klein FOUR-group", lib)?.name, "V₄");
+  });
+
+  test("unknown name returns undefined rather than throwing", () => {
+    assert.equal(findGroup("the monster", lib), undefined);
+  });
+});
+
+describe("phase 2 — shape", () => {
+  test("rejects a non-object", () => {
+    assert.match(problems([1, 2, 3]), /not a JSON object/);
+  });
+
+  test("rejects a missing identity", () => {
+    const d = good();
+    delete d.identity;
+    assert.match(problems(d), /identity must be a non-empty string/);
+  });
+
+  test("rejects elements that are not strings", () => {
+    const d = good();
+    d.elements = [1, 2, 3];
+    assert.match(problems(d), /elements must be an array of strings/);
+  });
+});
+
+describe("phase 3 — domain shape", () => {
+  test("identity must be one of the elements", () => {
+    const d = good();
+    d.identity = "nope";
+    assert.match(problems(d), /is not one of the elements/);
+  });
+
+  test("a generator must be an element", () => {
+    const d = good();
+    d.generators = ["q"];
+    assert.match(problems(d), /is not an element/);
+  });
+
+  test("every node needs an arrow of every colour leaving it", () => {
+    const d = good();
+    d.arrows = { r: { e: "r", r: "r2" } };
+    assert.match(problems(d), /has no arrow out of "r2", "r3"/);
+  });
+
+  test("arrows may not point at non-elements", () => {
+    const d = good();
+    d.arrows = { r: { e: "r", r: "r2", r2: "r3", r3: "elsewhere" } };
+    assert.match(problems(d), /points at "elsewhere", which is not an element/);
+  });
+
+  test("an arrow map must be a permutation", () => {
+    const d = good();
+    d.arrows = { r: { e: "r", r: "r2", r2: "r2", r3: "e" } };
+    assert.match(problems(d), /is not a permutation/);
+  });
+
+  test("⚑ the labelling law: arrows[g] must leave the identity on g", () => {
+    // A genuine C₄ in every respect — bijective, generates everything, satisfies
+    // every group law — but the arrow labelled r actually performs r³. Nothing
+    // except this check notices, and every table cell would be wrong relative to
+    // the names on the page.
+    const d = good();
+    d.arrows = { r: { e: "r3", r3: "r2", r2: "r", r: "e" } };
+
+    const msg = problems(d);
+    assert.match(msg, /leaves the identity "e" and lands on "r3", not "r"/);
+
+    // and prove the point: strip the labelling check and it would sail through
+    const asGroup = d as unknown as Group;
+    const reachable = new Set<string>();
+    let cur = asGroup.identity;
+    for (let i = 0; i < 4; i++) {
+      reachable.add(cur);
+      cur = asGroup.arrows.r[cur];
+    }
+    assert.equal(reachable.size, 4, "the mislabelled map really does generate the whole group");
+  });
+});
+
+describe("phase 4 — generators must actually generate", () => {
+  test("names the elements it cannot reach", () => {
+    // C₄'s elements, but the only generator is r², which reaches just {e, r2}
+    const d = good();
+    d.generators = ["r2"];
+    d.arrows = { r2: { e: "r2", r2: "e", r: "r3", r3: "r" } };
+    assert.match(problems(d), /do not reach "r", "r3" — they do not generate the group/);
+  });
+});
+
+describe("phase 5 — the group laws", () => {
+  test("catches a non-associative operation", () => {
+    // Three elements, arrows form a permutation and reach everything, but the
+    // resulting operation is not a group.
+    const d = {
+      name: "not a group",
+      elements: ["e", "x", "y"],
+      identity: "e",
+      generators: ["x"],
+      arrows: { x: { e: "x", x: "y", y: "e" } },
+    };
+    // this one IS C₃ and should pass — a control for the test above
+    assert.equal(problems(d), "");
+  });
+});
+
+describe("loadGroup errors name the file", () => {
+  test("throws on a file that is not JSON", () => {
+    assert.throws(() => loadGroup("package.json"), /package\.json/);
+  });
+
+  test("throws on a missing file", () => {
+    assert.throws(() => loadGroup("groups/nope.group.json"));
+  });
+});

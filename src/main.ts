@@ -1,8 +1,9 @@
 // Run:  npm start
 //
-// Until multiply() is written this fails loudly, which is the point.
+// Loads every group in groups/, prints its multiplication table, and checks the
+// structural properties. Nothing is hardcoded — add a file, it shows up here.
 
-import { C4, C5, V4 } from "./groups.ts";
+import { findGroup, loadLibrary } from "./load.ts";
 import {
   everyElementHasInverse,
   identityWorks,
@@ -13,6 +14,8 @@ import {
   words,
 } from "./group.ts";
 import type { Group } from "./group.ts";
+
+const LIBRARY = loadLibrary();
 
 /**
  * Dave's hand-built C₅ table, 2026-07-26, verified cell by cell.
@@ -28,6 +31,7 @@ const HAND_BUILT_C5 = [
 ];
 
 function checkAgainstHandBuilt(): void {
+  const C5 = findGroup("C₅", LIBRARY)!;
   const t = table(C5);
   const wrong: string[] = [];
 
@@ -57,7 +61,7 @@ function report(g: Group): void {
   console.log("  abelian .............", isAbelian(g));
 }
 
-for (const g of [C5, C4, V4]) report(g);
+for (const g of LIBRARY) report(g);
 checkAgainstHandBuilt();
 
 console.log(`

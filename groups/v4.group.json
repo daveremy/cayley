@@ -1,0 +1,14 @@
+{
+  "$schema": "../schema/group.schema.json",
+  "name": "V₄",
+  "aliases": ["Klein four-group", "Vierergruppe", "C₂ × C₂", "ℤ/2 × ℤ/2", "D₂", "the rectangle group"],
+  "elements": ["N", "R", "B", "RB"],
+  "identity": "N",
+  "generators": ["R", "B"],
+  "arrows": {
+    "R": { "N": "R", "R": "N", "B": "RB", "RB": "B" },
+    "B": { "N": "B", "B": "N", "R": "RB", "RB": "R" }
+  },
+  "notes": "Symmetries of a non-square rectangle. N = do nothing, R = flip left-right, B = flip top-bottom, RB = both = turn 180°. No 90° rotation exists — it would stand the rectangle on end. Every element is its own inverse, which is what two independent on/off switches look like. The smallest non-cyclic group: no single generator reaches everything.",
+  "source": "hand-authored — Carter, Visual Group Theory §4.4"
+}

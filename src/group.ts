@@ -76,6 +76,12 @@ export type Group = {
   identity: Element;
   generators: Generator[];
   arrows: Record<Generator, Permutation>;
+
+  // Human metadata. Carried through from the file; the mathematics ignores it.
+  /** Other names for the SAME group — V₄ is also C₂×C₂, D₂, the Klein four-group… */
+  aliases?: string[];
+  notes?: string;
+  source?: string;
 };
 
 // ── Derived structure ────────────────────────────────────────────────────────

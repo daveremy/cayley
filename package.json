@@ -6,7 +6,7 @@
   "description": "Learn group theory by building the instruments: Cayley diagrams, multiplication tables, generated exercises.",
   "scripts": {
     "start": "node --experimental-strip-types src/main.ts",
-    "check": "node --experimental-strip-types src/main.ts",
+    "check": "node --experimental-strip-types src/check.ts",
     "test": "node --experimental-strip-types --test src/*.test.ts"
   }
 }

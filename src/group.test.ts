@@ -14,7 +14,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 
-import { C4, C5, V4 } from "./groups.ts";
+import { findGroup, loadLibrary } from "./load.ts";
 import {
   allSelfInverse,
   everyElementHasInverse,
@@ -30,8 +30,18 @@ import {
 } from "./group.ts";
 import type { Group } from "./group.ts";
 
-/** Every group defined in groups.ts. Add new ones here and they get audited. */
-const ALL: Group[] = [C5, C4, V4];
+/**
+ * The whole library, loaded from groups/*.group.json.
+ *
+ * Nothing is hardcoded: drop a new file into groups/ and it is automatically
+ * subjected to every axiom test below. That is the point of the data-first
+ * design — adding a group is adding a file, not editing source.
+ */
+const ALL: Group[] = loadLibrary();
+
+const C5 = findGroup("C₅", ALL)!;
+const C4 = findGroup("C₄", ALL)!;
+const V4 = findGroup("V₄", ALL)!;
 
 // ── Layer 1: the axioms ──────────────────────────────────────────────────────
 

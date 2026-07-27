@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/daveremy/cayley/schema/group.schema.json",
+  "title": "Group",
+  "description": "A group stored the way a Cayley diagram stores one: nodes, plus one arrow-map per generator. This schema checks SHAPE only. It cannot express the group laws — that a set of arrows actually forms a group is checked at load time by src/load.ts. A file can satisfy this schema completely and still not be a group.",
+  "type": "object",
+  "required": ["name", "elements", "identity", "generators", "arrows"],
+  "additionalProperties": false,
+
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Path to this schema. ../schema/group.schema.json from groups/, ../../schema/group.schema.json from groups/drafts/."
+    },
+
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Primary display name, e.g. \"V₄\"."
+    },
+
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "Other names for the SAME group. V₄ is also the Klein four-group, C₂ × C₂, ℤ/2 × ℤ/2, D₂, and \"the rectangle group\". Six names for one object; listing them turns a recurring surprise into a lookup."
+    },
+
+    "elements": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Every member of the group — the nodes of the diagram. Labels only; the mathematics does not care what they are called."
+    },
+
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Which element is the do-nothing one. Must be a member of `elements`, not a separate thing."
+    },
+
+    "generators": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Which elements are arrow colours. A generator IS an element; being a generator is a role, not a species. Must be a subset of `elements`."
+    },
+
+    "arrows": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "arrows[generator][from] = to, meaning \"from · generator\". Every arrow in this project is RIGHT multiplication. One key per generator; each value must cover every element.",
+      "additionalProperties": {
+        "type": "object",
+        "minProperties": 1,
+        "additionalProperties": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "notes": {
+      "type": "string",
+      "description": "Free prose. What this group is, where it shows up, anything worth remembering."
+    },
+
+    "source": {
+      "type": "string",
+      "description": "Where the data came from — \"hand-authored\", a book and page, an import."
+    }
+  }
+}

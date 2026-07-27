@@ -1,0 +1,9 @@
+{
+  "//": "Resolves the group schema by glob, so it works from groups/ AND groups/drafts/ regardless of how deep the file sits.",
+  "json.schemas": [
+    {
+      "fileMatch": ["**/*.group.json"],
+      "url": "./schema/group.schema.json"
+    }
+  ]
+}
