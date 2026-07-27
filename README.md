@@ -94,25 +94,76 @@ Edit, run, read what is still wrong, repeat. When it passes, move the file from
 `y` names a path from the identity. To compute `x · y`, walk that same path
 but start at `x`. That is Carter's Definition 4.1, executable.
 
-## Run
+## Use it
 
 ```
-npm start
+npm link            # once — then `cayley` works anywhere
+cayley --help
 ```
 
-Prints tables for C₅, C₄, V₄ and checks four structural properties: the
-identity behaves, every element has an inverse, the table is a Latin square,
-and whether the group is abelian.
+Or without linking: `npm run g -- <command>`.
 
-C₅ is checked against a table built by hand in a spreadsheet on 2026-07-26.
-All 25 cells must agree.
+```
+cayley list                      every group in the library
+cayley show V4                   one group, in full
+cayley table C5                  the multiplication table
+cayley mul C5 a2 a3              one product, and the path walked
+cayley word V4 RB                an element's path from the identity
+cayley order C4                  element orders
+cayley diff C4 V4                two groups side by side
+cayley check <file>              is this file a group?
+```
+
+Group names are forgiving — `C5`, `c5`, `C₅`, `c 5` and `the rectangle group`
+all resolve. Subscripts fold to ASCII because nobody types `₅` all day.
+
+Every command takes `--json`:
+
+```
+$ cayley mul C5 a2 a3
+  a2 · a3 = e
+  (start at a2, follow a then a then a)
+
+$ cayley mul C5 a2 a3 --json
+{"group":"C₅","x":"a2","y":"a3","product":"e","path":["a","a","a"]}
+```
+
+`mul` prints the path, not just the answer, because the path *is* the mechanic:
+`y` names a route from the identity, and `x·y` walks that route starting from `x`.
+
+Exit codes: `0` success, `1` a well-formed command that failed (no such group,
+file is not a group), `2` a malformed invocation.
+
+## How it is put together
+
+```
+errors.ts        the error hierarchy — a leaf, imports nothing
+  ↑        ↑
+load.ts  commands.ts    pure: input → data. No printing, no exit.
+              ↑
+           cli.ts       formatting and exit codes only
+              ↑
+       bin/cayley.mjs   portable launcher
+```
+
+`commands.ts` returns plain objects and never prints — there is a test asserting
+it never writes to stdout. That is what would let an HTTP API or an MCP server be
+an adapter rather than a rewrite: **the `--json` shapes are the response bodies.**
+
+## Test
 
 ```
 npm test
 ```
 
-82 tests. The axiom layer runs against **every** file in `groups/`, so the
-library audits itself as it grows.
+167 tests, three layers: the command layer (pure, fast, most of the coverage),
+the CLI adapter (spawns the real process, checks stdout and exit codes), and a
+contract loop over every command asserting it exists, succeeds, accepts `--json`,
+and emits nothing but valid JSON when it does.
+
+The axiom layer runs against **every** file in `groups/`, so the library audits
+itself as it grows. C₅ is additionally checked against a table built by hand in a
+spreadsheet on 2026-07-26 — all 25 cells must agree.
 
 ## Next
 
