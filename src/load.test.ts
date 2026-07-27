@@ -300,3 +300,28 @@ describe("loading is cached, and loaded groups are frozen", () => {
     assert.ok(perCall < 0.05, `expected sub-0.05ms per call, got ${perCall.toFixed(3)}ms`);
   });
 });
+
+describe("ambiguity is rejected at load, not at lookup", () => {
+  test("a library whose files normalise to the same name refuses to load", async () => {
+    const { mkdtempSync, writeFileSync, cpSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+
+    const dir = mkdtempSync(join(tmpdir(), "cayley-ambiguous-"));
+    cpSync("groups/c5.group.json", join(dir, "c5.group.json"));
+
+    // A different group whose name normalises to "c5" — a genuine ambiguity.
+    writeFileSync(
+      join(dir, "impostor.group.json"),
+      JSON.stringify({
+        name: "C₅ ",
+        elements: ["e", "x"],
+        identity: "e",
+        generators: ["x"],
+        arrows: { x: { e: "x", x: "e" } },
+      }),
+    );
+
+    assert.throws(() => loadLibrary(dir), /ambiguous/i);
+  });
+});

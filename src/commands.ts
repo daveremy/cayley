@@ -188,7 +188,10 @@ export function orders(name: string, element?: string): {
   orders: Record<string, number>;
 } {
   const g = need(name);
-  const wanted = element ? [needElement(g, element)] : g.elements;
+  // `element !== undefined`, not truthiness: "" is a value the caller can pass
+  // (cayley order C5 "") and should be reported as an unknown element, not
+  // silently treated as "give me all of them".
+  const wanted = element !== undefined ? [needElement(g, element)] : g.elements;
   return { group: g.name, orders: Object.fromEntries(wanted.map((x) => [x, order(g, x)])) };
 }
 

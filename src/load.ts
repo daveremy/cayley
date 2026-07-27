@@ -361,6 +361,13 @@ export function loadLibrary(dir: string = LIBRARY_DIR): Group[] {
   if (failures.length) throw new LibraryValidationError(failures);
 
   const sorted = groups.sort((a, b) => a.elements.length - b.elements.length || a.name.localeCompare(b.name));
+
+  // Build the normalised index NOW, before caching, so an ambiguous library is
+  // rejected at load rather than on the first lookup. Otherwise `cayley list`
+  // would happily accept a library that `cayley show` cannot use — the sort of
+  // split-brain state this project exists to avoid.
+  index(sorted);
+
   libraryCache.set(dir, sorted);
   return sorted;
 }

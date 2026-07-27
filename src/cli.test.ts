@@ -217,6 +217,12 @@ describe("the CLI process", () => {
     assert.equal(JSON.parse(r.stdout).product, "e");
   });
 
+  test("an empty element argument is reported, not silently ignored", () => {
+    const r = cli("order", "C5", "");
+    assert.equal(r.code, 1);
+    assert.match(r.stderr, /is not an element of C₅/);
+  });
+
   test("a dash-led name that is NOT an element is a domain error, not a usage error", () => {
     const r = cli("word", "C5", "-1");
     assert.equal(r.code, 1, "should reach the domain layer, not be rejected by the parser");
