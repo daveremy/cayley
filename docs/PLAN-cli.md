@@ -127,18 +127,35 @@ library" want different handling.
 ### Typed errors carry the exit code (gemini, round 1)
 
 `commands.ts` must not call `process.exit` — it does not know it is in a CLI. It
-throws typed errors and the adapter maps them:
+throws typed errors and the adapter maps them.
 
-```ts
-class DomainError extends Error {}          // → exit 1
-class UnknownGroupError extends DomainError {}
-class UnknownElementError extends DomainError {}
-class UsageError extends Error {}           // → exit 2
+**The hierarchy lives in its own module (codex, round 3).** The obvious placement
+— `DomainError` in `commands.ts` — is circular: `commands.ts` imports `load.ts`,
+and `GroupValidationError` in `load.ts` would need to import `DomainError` back
+out of `commands.ts`. Beyond the cycle itself, ESM initialisation order for class
+extends across a cycle is genuinely fragile.
+
+So errors go in a leaf module that imports nothing:
+
+```
+src/errors.ts     ← imports nothing
+    ↑        ↑
+load.ts   commands.ts
+             ↑
+          cli.ts
 ```
 
-`GroupValidationError` (already in `load.ts`) becomes a `DomainError`. The
-adapter is then a single try/catch with two branches, and the same errors are
-directly reusable by an HTTP layer mapping to 404 vs 400.
+```ts
+// src/errors.ts
+export class DomainError extends Error {}          // → exit 1
+export class UnknownGroupError extends DomainError {}
+export class UnknownElementError extends DomainError {}
+export class UsageError extends Error {}           // → exit 2
+```
+
+`GroupValidationError` moves there too and extends `DomainError`. The adapter is
+then a single try/catch with two branches, and the same errors map cleanly onto
+HTTP 404 vs 400 later.
 
 ## ⚑ Typeability — a real defect, not polish
 
@@ -244,7 +261,16 @@ Layer 3 is the one that keeps the surface honest as it grows.
 3. Rewrite `src/cli.ts` as a thin adapter over the command layer using
    `parseArgs`.
 4. `bin` entry in `package.json`; keep `npm run g`.
-5. Delete `src/main.ts` and `src/check.ts`.
+5. **Repoint `package.json` scripts, then** delete `src/main.ts` and
+   `src/check.ts`. (codex, round 3 — the current `start` and `check` scripts
+   target exactly those two files and would break silently.)
+
+   ```
+   start  → removed, or aliased to `cayley list`
+   check  → node … src/cli.ts check
+   g      → node … src/cli.ts
+   test   → unchanged
+   ```
 6. Tests, three layers.
 7. Update README.
 
