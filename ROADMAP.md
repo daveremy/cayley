@@ -1,6 +1,19 @@
 # Roadmap
 
-Items deferred out of the current work, with where they came from.
+Tracked as [GitHub issues](https://github.com/daveremy/cayley/issues). This file
+keeps the reasoning; the issues keep the state.
+
+| # | | |
+|---|---|---|
+| [1](https://github.com/daveremy/cayley/issues/1) | Fill in Q₈'s arrows | `next-up` |
+| [2](https://github.com/daveremy/cayley/issues/2) | Generate group families instead of hand-authoring | `next-up` |
+| [3](https://github.com/daveremy/cayley/issues/3) | Exercise generator | `next-up` |
+| [4](https://github.com/daveremy/cayley/issues/4) | Render Cayley diagrams | `library` |
+| [5](https://github.com/daveremy/cayley/issues/5) | Relations between groups | `library` |
+| [6](https://github.com/daveremy/cayley/issues/6) | Empty-string element names | `hardening` |
+| [7](https://github.com/daveremy/cayley/issues/7) | Aggregate errors across phases | `hardening` |
+| [8](https://github.com/daveremy/cayley/issues/8) | `isAssociative` is O(n³) | `hardening` |
+| [9](https://github.com/daveremy/cayley/issues/9) | Lazy library index | `hardening` |
 
 ## Next up
 
@@ -15,12 +28,12 @@ Items deferred out of the current work, with where they came from.
 
 ## Library growth
 
-- **Import Group Explorer's `.group` XML** (LGPL-3.0, Nathan Carter & Ray Ellis —
-  the same Carter as the book). Would bring ~62 groups: A₄, A₅, dihedrals, the
-  quasihedral 16. The data are mathematical facts, not code.
-  **The wrinkle is the interesting part:** GE stores the *multiplication table*,
-  not arrows. Importing means running the machine backwards — given a table, find
-  a generating set and derive the arrows. Worth doing as an exercise, not a chore.
+- ~~**Import Group Explorer's `.group` XML**~~ — **dropped, 2026-07-27.** Not for
+  licensing reasons but for better ones: the families a learner needs are all
+  constructible from their definitions (issue #2), and generating them works for
+  any *n* while teaching the construction. Importing a fixture library ships
+  someone else's answers. Group Explorer stays valuable as an independent
+  implementation to cross-check against. See the README for the full reasoning.
 - **Relations between groups** — `isSubgroupOf`, `isIsomorphicTo`. Deliberately
   *not* fields on each file (codex, plan review round 1): they are cross-file
   facts and want a separate index. That index is what turns the library into an
