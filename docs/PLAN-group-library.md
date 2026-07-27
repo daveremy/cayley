@@ -86,16 +86,18 @@ searchable field converts that from a recurring surprise into a lookup.
 ### 3. Layout
 
 ```
-groups/                     the library — pure data
+groups/                     the library — pure data, all law-checked
   c5.group.json
   c4.group.json
   v4.group.json
-  q8.group.json             stub, to be filled by hand
+  drafts/                   work in progress — NOT loaded, NOT law-tested
+    q8.group.json           stub, to be filled in by hand
 schema/
   group.schema.json
 src/
-  group.ts                  engine, unchanged
+  group.ts                  engine, unchanged — stays file-unaware
   load.ts                   NEW — read, validate shape, validate laws
+  check.ts                  NEW — validate one file, print what is still wrong
   group.test.ts             fixtures load from groups/
 docs/
   PLAN-group-library.md     this file
@@ -130,9 +132,11 @@ message teaches the axiom that was violated.
 4. Repoint `group.test.ts` at the library; keep the hand-built C₅ table as the
    ground-truth fixture (it is the one thing verified against paper).
 5. Add a test that every file in `groups/` passes the laws — so the library
-   audits itself as it grows.
-6. Leave `q8.group.json` as a stub with elements and identity filled in and
-   arrows empty, for the user to complete.
+   audits itself as it grows. `groups/drafts/` is excluded.
+6. Add `npm run check <file>` (`src/check.ts`) — validates a single file and
+   prints every remaining problem in domain language.
+7. Place the Q₈ stub in `groups/drafts/` with elements, identity and generators
+   filled in and arrows empty, for the user to complete via the check loop.
 
 ## Non-goals (explicitly out of scope)
 
