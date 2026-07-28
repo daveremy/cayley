@@ -405,9 +405,11 @@ fails at runtime.
 1. **Inject the library.** `commands.ts` takes `Group[]` (or a small
    `GroupSource` interface) as a parameter instead of importing `loadLibrary`.
    Purest, testable, no bundler configuration. Touches every command signature.
-2. **Split the module.** `load.ts` keeps `validate()` (pure, browser-safe) and a
-   new `load.node.ts` holds the filesystem parts. `commands.ts` imports only the
-   pure half.
+2. **Split the module.** Extract the pure half into a new `src/validate.ts`;
+   `load.ts` keeps only the filesystem parts and imports it. `commands.ts` then
+   imports `validate.ts` rather than `load.ts`. Exact layout below — and note it
+   is `validate.ts` that is new, *not* a `load.node.ts`: the name `load` should
+   go on filesystem loading, which is what it actually does.
 3. **Bundler alias.** Point `./load.ts` at a browser implementation in the Vite
    config. Least code, but the coupling becomes invisible and build-tool-specific.
 
@@ -438,7 +440,8 @@ this section exists to cut. Import it from there and the browser build pulls in
 Node built-ins anyway — the function being pure does not help when the module
 is not.
 
-**So cutting the seam means physically moving it.** Target layout:
+**So cutting the seam means physically moving it** — this is option 2 above,
+stated exactly:
 
 ```
 src/validate.ts    NEW. validate() and its five phases. Zero imports beyond
