@@ -420,16 +420,35 @@ static JSON, so a bundled import or a `fetch` of a prebuilt index.
 **Which functions cross, precisely:**
 
 ```
-validate(data: unknown)   PURE. the browser entry point. all five phases,
-                          no filesystem. runs unchanged in either environment.
+validate(data: unknown)   PURE BEHAVIOUR. all five phases, no filesystem.
+                          ⚠ but see below — its current MODULE is not.
 loadGroup(path)           NODE ONLY. takes a file path.
 loadLibrary(dir)          NODE ONLY. reads a directory.
-check(path)               NODE/CLI ONLY — it wraps loadGroup. The browser
+check(path)               NODE/CLI ONLY — wraps loadGroup. The browser
                           equivalent is validate() on already-parsed JSON.
 ```
 
 The web never has a path; it has parsed objects. `validate()` is the whole
 surface it needs.
+
+**⚠ And this is exactly where an implementer would still get it wrong** (codex,
+round 5). `validate` is *pure in behaviour* but is **currently exported from
+`load.ts`**, whose top-level `node:fs` and `node:path` imports are the very seam
+this section exists to cut. Import it from there and the browser build pulls in
+Node built-ins anyway — the function being pure does not help when the module
+is not.
+
+**So cutting the seam means physically moving it.** Target layout:
+
+```
+src/validate.ts    NEW. validate() and its five phases. Zero imports beyond
+                   group.ts and errors.ts. This is what the web imports.
+src/load.ts        keeps ONLY the filesystem parts — loadGroup, loadLibrary,
+                   the cache — and imports validate.ts.
+```
+
+Purity is a property of the import graph, not of the function body. That
+distinction is the whole content of this section, and it is easy to lose.
 
 ### 7.2 Framework — recommendation with the trade-off shown
 
