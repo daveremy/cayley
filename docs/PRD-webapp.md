@@ -207,11 +207,15 @@ recurring traps stop being ambient and become visible boundary crossings:
 ### 6.2 Performance budget — "fast" made falsifiable
 
 ```
-LCP (lesson page)          < 1.0 s     on a mid-tier phone, 4G
+LCP (lesson page)          < 1.0 s      on a mid-tier phone, 4G
 Interaction to next paint  < 100 ms
-JS shipped, content page   < 50 KB     gzipped
-JS shipped, explorer       < 200 KB    gzipped
-engine operations          < 1 ms      already true: table() is memoised
+JS shipped, content page   < 50 KB      gzipped
+JS shipped, explorer       < 200 KB     gzipped
+engine operations          < 1 ms       already true: table() is memoised
+
+All bundle figures are GZIPPED transfer size. KaTeX at ~280 KB (§6.3a) is
+uncompressed library size and is the reason it renders at build time, not at
+runtime — it would not fit either budget.
 ```
 
 The engine is not the risk. **Framework weight is the risk.**
@@ -411,8 +415,21 @@ Option 1 or 2. **This must be resolved in M0 before any lesson work** — it is 
 signature change across the command surface and gets more expensive later.
 
 Once cut, the browser needs a `loadLibrary` equivalent: the group files are
-static JSON, so a bundled import or a `fetch` of a prebuilt index. `validate()`
-runs unchanged in either environment.
+static JSON, so a bundled import or a `fetch` of a prebuilt index.
+
+**Which functions cross, precisely:**
+
+```
+validate(data: unknown)   PURE. the browser entry point. all five phases,
+                          no filesystem. runs unchanged in either environment.
+loadGroup(path)           NODE ONLY. takes a file path.
+loadLibrary(dir)          NODE ONLY. reads a directory.
+check(path)               NODE/CLI ONLY — it wraps loadGroup. The browser
+                          equivalent is validate() on already-parsed JSON.
+```
+
+The web never has a path; it has parsed objects. `validate()` is the whole
+surface it needs.
 
 ### 7.2 Framework — recommendation with the trade-off shown
 
@@ -743,6 +760,71 @@ terms               "no warranty, no uptime guarantee, be reasonable." A free
                     educational API needs one short honest paragraph, not an EULA.
 ```
 
+### 11.3d Self-hostable — a requirement, not a nicety
+
+The content is CC BY 4.0 (§11.3). **Content that cannot be rehosted is not
+meaningfully open.**
+
+```
+build target        pure static HTML/CSS/JS. Deployable to GitHub Pages,
+                    Netlify, S3, or a laptop.
+Cloudflare-specific ONLY the API and MCP Workers. Not the site.
+POST /validate      configurable API base URL. Degrades gracefully when absent —
+                    the tutorial and explorer work without it, because the
+                    engine runs client-side anyway.
+```
+
+A fork should be able to `npm run build` and serve the result from anywhere.
+
+### 11.3e Local development without a Cloudflare account
+
+An external contributor must not need an account, a token, or a paid anything to
+build and test.
+
+```
+astro dev           the whole site. no cloud dependency.
+wrangler dev        local mode, for the API only. optional.
+npm test            196 tests. no network.
+cayley <cmd>        the CLI. no network.
+```
+
+**Only deploying needs credentials.** Everything else runs offline, and that must
+stay true — the moment contribution requires an account, contribution stops.
+
+### 11.3f Lesson prose verification in CI
+
+§11.3a requires every mathematical claim in prose to have a runnable counterpart.
+That is worthless unless it is enforced:
+
+```
+1. lesson MDX declares its claims in frontmatter:
+
+   claims:
+     - "V₄ has no element of order 4":  orderProfile(V4)[4] === undefined
+     - "Q₈ and D₄ are not isomorphic":  diff('Q8','D4').distinguishedBy.length > 0
+
+2. CI extracts and RUNS them against the engine
+3. a lesson PR cannot merge with a failing or absent claim check
+```
+
+Prose without a runnable claim is not forbidden — plenty of sentences are not
+mathematical. **But a sentence that asserts a mathematical fact and cannot be
+made runnable gets rewritten until it can be.**
+
+### 11.3g Interactive component failure states
+
+Islands can be handed malformed input — a corrupted `localStorage` blob, a
+hand-edited URL, a group that fails validation.
+
+```
+never            a blank page or a stack trace
+always           the domain-language error, the same as `cayley check`
+degradation      an island that fails leaves the static prose readable
+recovery         "reset this exercise" is always available
+```
+
+The no-dead-ends rule (§6.4) applies to broken software as well as wrong answers.
+
 ### 11.4 Contribution model
 
 Open source from day one, but the tutorial is not a wiki. Three tiers:
@@ -793,14 +875,29 @@ primary user: he reads Carter in bed on a phone and works at a desk.
 and solves the real problem: a code mapping to a progress blob in Cloudflare KV,
 typed once on the other device. No email, no password, no account.
 
-**⚠ But "six characters, no PII" was under-specified, and one part of it was
-wrong** (codex review). If this is built, it needs:
+**⚠ Under-specified, and two successive drafts each got it wrong.**
+
+Codex noted six characters is brute-forceable. The fix attempted — *"≥128 bits of
+entropy"* — then contradicted the entire point: 128 bits is a 32-character string,
+and nobody types that on a phone in bed. **Security requirement and UX
+requirement in direct opposition.**
+
+The resolution is the one every device-pairing flow already uses. **Entropy does
+not have to come from the code; it can come from the time window and the attempt
+limit:**
 
 ```
-entropy        6 chars is brute-forceable. ≥128 bits, unguessable, not sequential.
-expiry         codes expire. A permanent bearer token to someone's progress is
-               a credential, whether or not it is called one.
-rate limiting  on redemption, or the entropy does not help.
+short code          6 digits — typable, one-handed, on a phone
+short TTL           5 minutes, then it is dead
+attempt limit       3 redemptions, then revoked
+rate limited        per-IP on the redemption endpoint
+```
+
+One million combinations against three attempts inside five minutes is not
+brute-forceable in any practical sense. **It is a pairing code, not a password**,
+and the distinction is what makes it both safe and usable.
+
+```
 retention      state a deletion policy up front. Data with no expiry is a
                liability that accrues silently.
 ```
