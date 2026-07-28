@@ -2,7 +2,7 @@
 name: New group submission
 about: Propose a group for the library
 title: 'group: '
-labels: group
+labels: library
 assignees: ''
 ---
 
@@ -32,7 +32,8 @@ $ npm run check groups/<yours>.group.json
 
 ---
 
-The validator is the review — if the five phases pass, the mathematics is sound
-and there is nothing left for a human to verify about it. What a reviewer is
-actually reading is the two fields the validator cannot check: `source` and
-`notes`. See [CONTRIBUTING.md](../../CONTRIBUTING.md#groups-welcome).
+The validator is the review — if the five phases pass, the mathematics is sound.
+What is left for a reviewer is everything the phases cannot see: `source`,
+`notes`, and whether the group is called what it says it is. A valid group file
+mislabelled `S₃` passes all five.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md#groups-welcome).

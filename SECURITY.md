@@ -20,14 +20,12 @@ land on `main` and that is the whole story.
 
 ## What the attack surface actually is
 
-Being honest about this is more useful than a template.
-
 **Today: almost nothing.** The project is a CLI and a library of JSON files. It
 reads local files you already have on disk, has zero dependencies — so no
 transitive supply chain — runs no server, opens no socket, stores no credentials,
-and accepts no remote input. The realistic bug classes are a crash or a wrong
-answer, and a wrong answer is a correctness bug, which matters here rather a lot,
-but it is not a security one. Report those as ordinary issues.
+and accepts no remote input. The realistic bug classes are a crash and a wrong
+answer. A wrong answer matters enormously here — but it is a correctness bug, not
+a security one. Report those as ordinary issues.
 
 **Tomorrow: `POST /api/v1/validate`.** The planned web API (see
 [`docs/PRD-webapp.md`](docs/PRD-webapp.md) §7.4) is the first thing that will
@@ -35,14 +33,13 @@ accept a stranger's input, and it is the one endpoint that must actually run
 code rather than serve a cached file. **It does not exist yet.** When it ships,
 that is where to look.
 
-One property of it is worth stating in advance, because it is a design
-constraint rather than a bug waiting to be found: the associativity check is a
-triple loop over the elements, and edge functions get a fixed CPU budget per
-invocation. An order-24 group is about 14,000 comparisons and fine. An order-168
-group is 4.7 million and is not. Unbounded input is therefore a denial of
-service by arithmetic alone, which is why element count and payload size are
-capped at the endpoint. If you find a way around that cap, that is a real report
-and we would like to hear it.
+One constraint is worth stating in advance, because it is by design: the
+associativity check is a triple loop over the elements, and edge functions get a
+fixed CPU budget per invocation. An order-24 group is about 14,000 comparisons
+and fine. An order-168 group is 4.7 million and is not. Unbounded input is
+therefore a denial of service by arithmetic alone, which is why element count and
+payload size will be capped at the endpoint. Once it ships, a way around that cap
+is a real report and we would like to hear it.
 
 ## Out of scope
 

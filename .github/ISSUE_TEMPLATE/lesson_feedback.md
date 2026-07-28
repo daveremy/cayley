@@ -2,7 +2,7 @@
 name: Lesson feedback
 about: Something in the tutorial confused you
 title: 'lesson: '
-labels: lesson-feedback
+labels: learning
 assignees: ''
 ---
 
@@ -31,10 +31,8 @@ Roughly how far into the material, and whether you had met any of this before.
 
 **A confused reader is data, not a complaint.** This tutorial is written from
 [`docs/learner-failure-log.md`](../../docs/learner-failure-log.md) — a record of
-where one real learner actually got stuck, with timestamps — rather than from a
-table of contents. Two days were lost in there to believing a group's elements
-were the corners of a square rather than the moves, and the lesson that exists
-because of it is better than the one that would have been written without it.
+where one real learner actually got stuck — rather than from a table of contents.
+Your confusion is the next entry.
 
 Lesson prose is by invitation for now, so this is the most direct way to change
 what the lessons say. If the text lost you, the text is wrong.
