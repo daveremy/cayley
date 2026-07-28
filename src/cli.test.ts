@@ -17,9 +17,11 @@ import { resolve } from "node:path";
 import * as cmd from "./commands.ts";
 import { COMMANDS } from "./commands.ts";
 import { DomainError, UnknownElementError, UnknownGroupError } from "./errors.ts";
-import { normalise } from "./load.ts";
+import { normalise } from "./validate.ts";
+import { loadLibrary } from "./load.ts";
 
 const CLI = resolve(import.meta.dirname, "cli.ts");
+const LIB = loadLibrary();
 
 /** Run the real CLI in a real process. */
 function cli(...args: string[]): { stdout: string; stderr: string; code: number } {
@@ -46,7 +48,7 @@ const SAMPLE: Record<string, string[]> = {
 
 describe("commands return data, not output", () => {
   test("list summarises every group", () => {
-    const { groups } = cmd.list();
+    const { groups } = cmd.list(LIB);
     assert.ok(groups.length >= 3);
     for (const g of groups) {
       assert.equal(typeof g.name, "string");
@@ -56,7 +58,7 @@ describe("commands return data, not output", () => {
   });
 
   test("mul returns the product AND the path walked", () => {
-    assert.deepEqual(cmd.mul("C5", "a2", "a3"), {
+    assert.deepEqual(cmd.mul(LIB, "C5", "a2", "a3"), {
       group: "C₅",
       x: "a2",
       y: "a3",
@@ -66,20 +68,20 @@ describe("commands return data, not output", () => {
   });
 
   test("the path is the mechanic — walking it by hand reproduces the product", () => {
-    const { path, product, x } = cmd.mul("V4", "R", "RB");
+    const { path, product, x } = cmd.mul(LIB, "V4", "R", "RB");
     assert.deepEqual(path, ["R", "B"]);
     assert.equal(product, "B");
     assert.equal(x, "R");
   });
 
   test("word gives the identity an empty path", () => {
-    const r = cmd.word("C5", "e");
+    const r = cmd.word(LIB, "C5", "e");
     assert.deepEqual(r.path, []);
     assert.equal(r.isIdentity, true);
   });
 
   test("show is exhaustive — it is the API response", () => {
-    const d = cmd.show("V4");
+    const d = cmd.show(LIB, "V4");
     for (const key of ["elements", "identity", "elementOrders", "squares", "words", "properties"]) {
       assert.ok(key in d, `show() is missing ${key}`);
     }
@@ -88,13 +90,13 @@ describe("commands return data, not output", () => {
   });
 
   test("order: 1 for the identity, and V₄ is all involutions", () => {
-    assert.equal(cmd.orders("V4", "N").orders.N, 1);
-    assert.deepEqual(cmd.orders("V4").orders, { N: 1, R: 2, B: 2, RB: 2 });
-    assert.equal(cmd.orders("C4", "r").orders.r, 4);
+    assert.equal(cmd.orders(LIB, "V4", "N").orders.N, 1);
+    assert.deepEqual(cmd.orders(LIB, "V4").orders, { N: 1, R: 2, B: 2, RB: 2 });
+    assert.equal(cmd.orders(LIB, "C4", "r").orders.r, 4);
   });
 
   test("diff names what actually separates two groups of the same order", () => {
-    const r = cmd.diff("C4", "V4");
+    const r = cmd.diff(LIB, "C4", "V4");
     assert.equal(r.sameOrder, true);
     assert.ok(r.distinguishedBy.includes("all elements self-inverse"));
     assert.ok(r.distinguishedBy.includes("largest element order"));
@@ -102,7 +104,7 @@ describe("commands return data, not output", () => {
   });
 
   test("unknown group throws UnknownGroupError, listing what exists", () => {
-    assert.throws(() => cmd.show("the monster"), (e: unknown) => {
+    assert.throws(() => cmd.show(LIB, "the monster"), (e: unknown) => {
       assert.ok(e instanceof UnknownGroupError);
       assert.ok(e instanceof DomainError, "must be a DomainError so the adapter maps it to exit 1");
       assert.ok(e.known.length > 0);
@@ -111,7 +113,7 @@ describe("commands return data, not output", () => {
   });
 
   test("unknown element throws UnknownElementError, listing the real ones", () => {
-    assert.throws(() => cmd.mul("C5", "a2", "zzz"), (e: unknown) => {
+    assert.throws(() => cmd.mul(LIB, "C5", "a2", "zzz"), (e: unknown) => {
       assert.ok(e instanceof UnknownElementError);
       assert.match((e as Error).message, /is not an element of C₅/);
       return true;
@@ -123,10 +125,10 @@ describe("commands return data, not output", () => {
     const real = console.log;
     console.log = (...a: unknown[]) => void logged.push(a);
     try {
-      cmd.list();
-      cmd.show("C5");
-      cmd.tableOf("C5");
-      cmd.diff("C4", "V4");
+      cmd.list(LIB);
+      cmd.show(LIB, "C5");
+      cmd.tableOf(LIB, "C5");
+      cmd.diff(LIB, "C4", "V4");
     } finally {
       console.log = real;
     }
@@ -139,7 +141,7 @@ describe("commands return data, not output", () => {
 describe("group names are forgiving to type", () => {
   for (const typed of ["C5", "c5", "C₅", "c 5", "C-5", "Z5", "cyclic group of order 5"]) {
     test(`"${typed}" finds C₅`, () => {
-      assert.equal(cmd.show(typed).name, "C₅");
+      assert.equal(cmd.show(LIB, typed).name, "C₅");
     });
   }
 
@@ -151,7 +153,7 @@ describe("group names are forgiving to type", () => {
 
   test("an alias colliding with its own group's name is fine — that is the point", () => {
     // "C₅" and the alias "C5" both normalise to "c5". Same group, so legal.
-    assert.equal(cmd.show("C5").name, cmd.show("C₅").name);
+    assert.equal(cmd.show(LIB, "C5").name, cmd.show(LIB, "C₅").name);
   });
 });
 

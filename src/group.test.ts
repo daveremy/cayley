@@ -14,7 +14,8 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 
-import { findGroup, loadLibrary } from "./load.ts";
+import { loadLibrary } from "./load.ts";
+import { findGroup } from "./validate.ts";
 import {
   allSelfInverse,
   everyElementHasInverse,

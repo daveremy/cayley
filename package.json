@@ -8,7 +8,9 @@
     "start": "node --experimental-strip-types src/cli.ts list",
     "g": "node --experimental-strip-types src/cli.ts",
     "check": "node --experimental-strip-types src/cli.ts check",
-    "test": "node --experimental-strip-types --test src/*.test.ts"
+    "test": "node --experimental-strip-types --test src/*.test.ts",
+    "test:purity": "./test/bundle-purity.sh",
+    "test:all": "npm test && npm run test:purity"
   },
   "bin": {
     "cayley": "bin/cayley.mjs"

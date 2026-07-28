@@ -7,9 +7,15 @@
 //   0  success
 //   1  domain failure   — well-formed command, operation did not succeed
 //   2  usage error      — the invocation itself was wrong
+//
+// This file is where the filesystem lives. It reads the library and hands it to
+// commands.ts, which never touches a disk. `check` is here for the same reason:
+// it takes a PATH, and a function taking a path cannot live in a module a
+// browser imports.
 
 import * as cmd from "./commands.ts";
 import { COMMANDS } from "./commands.ts";
+import { loadGroup, loadLibrary } from "./load.ts";
 import { DomainError, GroupValidationError, LibraryValidationError, UnknownGroupError, UsageError } from "./errors.ts";
 
 const HELP = `
@@ -112,6 +118,9 @@ function printDiff(r: ReturnType<typeof cmd.diff>): void {
 // ── the adapter ──────────────────────────────────────────────────────────────
 
 function run(command: string, args: string[], json: boolean): void {
+  // read once, per invocation. commands never load anything themselves.
+  const lib = loadLibrary();
+
   const arg = (i: number, what: string): string => {
     const v = args[i];
     if (v === undefined) throw new UsageError(`${command} needs ${what}`);
@@ -121,19 +130,19 @@ function run(command: string, args: string[], json: boolean): void {
 
   switch (command) {
     case "list": {
-      const r = cmd.list();
+      const r = cmd.list(lib);
       return out(r, () => printList(r));
     }
     case "show": {
-      const r = cmd.show(arg(0, "a group name"));
+      const r = cmd.show(lib, arg(0, "a group name"));
       return out(r, () => printDetail(r));
     }
     case "table": {
-      const r = cmd.tableOf(arg(0, "a group name"));
+      const r = cmd.tableOf(lib, arg(0, "a group name"));
       return out(r, () => printTable(r));
     }
     case "arrows": {
-      const r = cmd.arrowsOf(arg(0, "a group name"));
+      const r = cmd.arrowsOf(lib, arg(0, "a group name"));
       return out(r, () => {
         console.log(`\n${r.group}   ${r.convention}\n`);
         const froms = Object.keys(r.arrows[r.generators[0]]);
@@ -146,14 +155,14 @@ function run(command: string, args: string[], json: boolean): void {
       });
     }
     case "mul": {
-      const r = cmd.mul(arg(0, "a group name"), arg(1, "two elements"), arg(2, "a second element"));
+      const r = cmd.mul(lib, arg(0, "a group name"), arg(1, "two elements"), arg(2, "a second element"));
       return out(r, () => {
         console.log(`\n  ${r.x} · ${r.y} = ${r.product}`);
         console.log(`  (start at ${r.x}, follow ${r.path.length ? r.path.join(" then ") : "no arrows"})\n`);
       });
     }
     case "word": {
-      const r = cmd.word(arg(0, "a group name"), arg(1, "an element"));
+      const r = cmd.word(lib, arg(0, "a group name"), arg(1, "an element"));
       return out(r, () =>
         console.log(
           `\n  ${r.element} = ${r.isIdentity ? "(the empty path — it IS the identity)" : r.path.join(" · ")}\n`,
@@ -161,7 +170,7 @@ function run(command: string, args: string[], json: boolean): void {
       );
     }
     case "order": {
-      const r = cmd.orders(arg(0, "a group name"), args[1]);
+      const r = cmd.orders(lib, arg(0, "a group name"), args[1]);
       return out(r, () => {
         console.log("");
         for (const [x, n] of Object.entries(r.orders)) {
@@ -171,11 +180,14 @@ function run(command: string, args: string[], json: boolean): void {
       });
     }
     case "diff": {
-      const r = cmd.diff(arg(0, "two group names"), arg(1, "a second group name"));
+      const r = cmd.diff(lib, arg(0, "two group names"), arg(1, "a second group name"));
       return out(r, () => printDiff(r));
     }
     case "check": {
-      const r = cmd.check(arg(0, "a file path"));
+      // the only command that reads a path. That is why it is here and not in
+      // commands.ts — see the header.
+      const file = arg(0, "a file path");
+      const r = { ...cmd.describe(loadGroup(file)), file, valid: true as const };
       return out(r, () => {
         console.log(`\n✓ ${r.file} is a group.`);
         printDetail(r);

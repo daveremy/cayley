@@ -8,7 +8,8 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync } from "node:fs";
 
-import { clearLibraryCache, findGroup, loadGroup, loadLibrary, validate } from "./load.ts";
+import { clearLibraryCache, loadGroup, loadLibrary } from "./load.ts";
+import { findGroup, normalise, validate } from "./validate.ts";
 import type { Group } from "./group.ts";
 
 /** A valid C₄, to be broken in various ways below. */
@@ -286,7 +287,7 @@ describe("loading is cached, and loaded groups are frozen", () => {
   });
 
   test("a loaded group cannot be mutated — the memo caches depend on it", () => {
-    const v4 = findGroup("V₄") as Group;
+    const v4 = findGroup("V₄", loadLibrary()) as Group;
     assert.ok(Object.isFrozen(v4));
     assert.ok(Object.isFrozen(v4.arrows));
     assert.ok(Object.isFrozen(v4.arrows.R));
@@ -298,9 +299,9 @@ describe("loading is cached, and loaded groups are frozen", () => {
   });
 
   test("repeated findGroup with the default library is cheap after the first", () => {
-    findGroup("V₄"); // warm
+    findGroup("V₄", loadLibrary()); // warm
     const t0 = performance.now();
-    for (let i = 0; i < 200; i++) findGroup("V₄");
+    for (let i = 0; i < 200; i++) findGroup("V₄", loadLibrary());
     const perCall = (performance.now() - t0) / 200;
     assert.ok(perCall < 0.05, `expected sub-0.05ms per call, got ${perCall.toFixed(3)}ms`);
   });

@@ -10,8 +10,27 @@
 //
 // The returned shapes ARE the --json output, and therefore the future API
 // response bodies. Changing one changes all three.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// WHY EVERY COMMAND TAKES THE LIBRARY
+//
+// These used to call loadLibrary() themselves, which was convenient and meant
+// this file could never be imported by anything but Node — loadLibrary reads a
+// directory. The caller supplies the library instead:
+//
+//     cli.ts   const lib = loadLibrary();        cmd.list(lib)
+//     web      import lib from "./groups.json";  cmd.list(lib)
+//
+// Same functions, two environments, no adapter. This is the seam that makes an
+// HTTP or MCP surface a serialiser rather than a rewrite.
+//
+// Note what is NOT here: check(path). Reading a file is a CLI concern, and a
+// function that takes a path cannot live in a module the browser imports —
+// "CLI-only by convention" is not a thing a bundler respects. cli.ts owns it and
+// calls describe() below.
+// ─────────────────────────────────────────────────────────────────────────────
 
-import { findGroup, loadLibrary, loadGroup } from "./load.ts";
+import { findGroup } from "./validate.ts";
 import {
   allSelfInverse,
   everyElementHasInverse,
@@ -31,14 +50,11 @@ import { UnknownElementError, UnknownGroupError } from "./errors.ts";
 
 // ── lookup helpers ───────────────────────────────────────────────────────────
 
-/** Resolve a group name, or say what is available. */
-function need(name: string): Group {
-  const g = findGroup(name);
+/** Resolve a group name against a library, or say what is available. */
+function need(lib: Group[], name: string): Group {
+  const g = findGroup(name, lib);
   if (g) return g;
-  throw new UnknownGroupError(
-    name,
-    loadLibrary().flatMap((x) => [x.name, ...(x.aliases ?? [])]),
-  );
+  throw new UnknownGroupError(name, lib.flatMap((x) => [x.name, ...(x.aliases ?? [])]));
 }
 
 /** Confirm an element belongs to a group before using it. */
@@ -102,8 +118,8 @@ function summarise(g: Group): Summary {
 }
 
 /** Every group in the library. */
-export function list(): { groups: Summary[] } {
-  return { groups: loadLibrary().map(summarise) };
+export function list(lib: Group[]): { groups: Summary[] } {
+  return { groups: lib.map(summarise) };
 }
 
 /**
@@ -113,36 +129,17 @@ export function list(): { groups: Summary[] } {
  * make four requests to assemble one picture has been given a bad API. It is
  * cheap because table() and words() are memoised per group.
  */
-export function show(name: string): Detail {
-  const g = need(name);
-  return {
-    ...summarise(g),
-    elements: [...g.elements],
-    identity: g.identity,
-    elementOrders: Object.fromEntries(g.elements.map((x) => [x, order(g, x)])),
-    inverses: inverses(g),
-    squares: squares(g),
-    words: Object.fromEntries([...words(g)].map(([e, w]) => [e, w])),
-    properties: {
-      closed: isClosed(g),
-      identityWorks: identityWorks(g),
-      everyElementHasInverse: everyElementHasInverse(g),
-      associative: isAssociative(g),
-      latinSquare: isLatinSquare(g),
-      abelian: isAbelian(g),
-    },
-    ...(g.notes ? { notes: g.notes } : {}),
-    ...(g.source ? { source: g.source } : {}),
-  };
+export function show(lib: Group[], name: string): Detail {
+  return describe(need(lib, name));
 }
 
 /** The multiplication table, with its row/column ordering made explicit. */
-export function tableOf(name: string): {
+export function tableOf(lib: Group[], name: string): {
   name: string;
   elements: string[];
   rows: Record<string, Record<string, string>>;
 } {
-  const g = need(name);
+  const g = need(lib, name);
   return { name: g.name, elements: [...g.elements], rows: table(g) };
 }
 
@@ -153,14 +150,14 @@ export function tableOf(name: string): {
  * identity, and x·y walks that route starting from x instead. Returning it keeps
  * the diagram visible in the answer.
  */
-export function mul(name: string, x: string, y: string): {
+export function mul(lib: Group[], name: string, x: string, y: string): {
   group: string;
   x: string;
   y: string;
   product: string;
   path: string[];
 } {
-  const g = need(name);
+  const g = need(lib, name);
   needElement(g, x);
   needElement(g, y);
   return {
@@ -173,13 +170,13 @@ export function mul(name: string, x: string, y: string): {
 }
 
 /** An element's path from the identity — Carter's Definition 4.1. */
-export function word(name: string, element: string): {
+export function word(lib: Group[], name: string, element: string): {
   group: string;
   element: string;
   path: string[];
   isIdentity: boolean;
 } {
-  const g = need(name);
+  const g = need(lib, name);
   needElement(g, element);
   const path = words(g).get(element) ?? [];
   return { group: g.name, element, path, isIdentity: element === g.identity };
@@ -197,13 +194,13 @@ export function word(name: string, element: string): {
  * this codebase, so the same trace produces k here and -k there. Both correct,
  * different questions.
  */
-export function arrowsOf(name: string): {
+export function arrowsOf(lib: Group[], name: string): {
   group: string;
   convention: string;
   generators: string[];
   arrows: Record<string, Record<string, string>>;
 } {
-  const g = need(name);
+  const g = need(lib, name);
   return {
     group: g.name,
     convention: "arrows[gen][from] = from · gen   (right multiplication)",
@@ -213,11 +210,11 @@ export function arrowsOf(name: string): {
 }
 
 /** Element orders — one element, or all of them. */
-export function orders(name: string, element?: string): {
+export function orders(lib: Group[], name: string, element?: string): {
   group: string;
   orders: Record<string, number>;
 } {
-  const g = need(name);
+  const g = need(lib, name);
   // `element !== undefined`, not truthiness: "" is a value the caller can pass
   // (cayley order C5 "") and should be reported as an unknown element, not
   // silently treated as "give me all of them".
@@ -256,15 +253,15 @@ export function orderProfile(g: Group): Record<number, number> {
  * `sameOrder` and `distinguishedBy` are the point: two groups of the same size
  * are not the same group, and this names what actually separates them.
  */
-export function diff(a: string, b: string): {
+export function diff(lib: Group[], a: string, b: string): {
   a: Summary & { largestElementOrder: number; squares: Record<string, string>; orderProfile: Record<number, number> };
   b: Summary & { largestElementOrder: number; squares: Record<string, string>; orderProfile: Record<number, number> };
   sameOrder: boolean;
   distinguishedBy: string[];
   possiblyIsomorphic: boolean;
 } {
-  const ga = need(a);
-  const gb = need(b);
+  const ga = need(lib, a);
+  const gb = need(lib, b);
   const decorate = (g: Group) => ({
     ...summarise(g),
     largestElementOrder: Math.max(...g.elements.map((x) => order(g, x))),
@@ -295,11 +292,15 @@ export function diff(a: string, b: string): {
   };
 }
 
-/** Validate a file. Throws GroupValidationError if it is not a group. */
-export function check(path: string): Detail & { file: string; valid: true } {
-  const g = loadGroup(path);
-  // reuse show()'s shape by describing the loaded group directly
-  const detail: Detail = {
+/**
+ * Everything worth saying about a group, as data.
+ *
+ * Shared by `show` (which looks a group up) and by the CLI's `check` (which
+ * reads one off disk). The difference between those is only where the Group
+ * came from, so only that part needs to be Node.
+ */
+export function describe(g: Group): Detail {
+  return {
     ...summarise(g),
     elements: [...g.elements],
     identity: g.identity,
@@ -318,7 +319,6 @@ export function check(path: string): Detail & { file: string; valid: true } {
     ...(g.notes ? { notes: g.notes } : {}),
     ...(g.source ? { source: g.source } : {}),
   };
-  return { ...detail, file: path, valid: true };
 }
 
 /** Every command, for the invariant tests and for --help. */
