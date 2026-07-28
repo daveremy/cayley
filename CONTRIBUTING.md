@@ -61,14 +61,15 @@ particularly the note on the labelling law — it is the one check that looks
 redundant and is not.
 
 **Four fields the validator cannot check for you**, and which a human therefore
-reviews. Every one of them is a string, and a string can say anything:
+reviews. Phase 2 checks the *type* of each. Nothing checks whether what they say
+is true:
 
 | field | why a person has to look |
 |---|---|
 | `source` | Where the group came from. Expected on every submission, though the schema does not enforce it — which is exactly why someone has to ask. Provenance is not derivable. |
 | `notes` | Free prose, and it is displayed. The mathematics around it is verified; the sentences are not. |
 | `name` | Phase 2 checks that it is a non-empty string. Nothing checks that a group labelled `S₃` is S₃. |
-| `aliases` | Same. A perfectly valid group can pass all five phases under somebody else's name. |
+| `aliases` | Phase 2 checks it is an array of strings. Nothing checks that any of them names *this* group — so a valid group can pass all five phases under somebody else's name. |
 
 Everything computed is guaranteed. Everything written is only as good as the
 writer. If your `notes` make a mathematical claim, make it one the tool could
