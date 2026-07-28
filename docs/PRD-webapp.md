@@ -183,8 +183,10 @@ recurring traps stop being ambient and become visible boundary crossings:
 
 - **Not a Group Explorer replacement.** GE is exhaustive and expert-facing. This
   is guided and beginner-facing. Different products; GE stays a cross-check.
-- **No accounts, no database, no login.** Progress in `localStorage`, sharing via
-  URL-encoded state (the Glyph pattern, already proven with this user).
+- **No accounts, no database, no login — through M3.** Progress in `localStorage`,
+  sharing via URL-encoded state (the Glyph pattern, already proven with this
+  user). **This is a deferral with named triggers, not a permanent position** —
+  see §11.7.
 - **Not a proof assistant.** No theorem proving, no Lean.
 - **Not comprehensive.** It teaches a path through group theory, not all of it.
 - **No AI chat tutor.** Tempting and wrong: the corrective protocol in this
@@ -667,6 +669,45 @@ prose must be readable with JavaScript disabled**, since it is static HTML anywa
 - **No internationalisation.** English only. Notation is already universal.
 - **No video.** 3Blue1Brown exists and is better at it.
 - **No user-generated lessons** (see 11.4).
+
+### 11.7 Identity — deferred, not refused
+
+The non-goal above is scoped to M0–M3. Three futures would warrant revisiting,
+and the architecture should not preclude any of them.
+
+```
+TRIGGER                              CHEAPEST ANSWER
+cross-device progress gets annoying  1. URL save-links (already proven)
+                                     2. SYNC CODE — 6 chars → KV blob.
+                                        no email, no password, no PII.
+                                     3. real auth, only if 1 and 2 fail
+
+public API gets abused               keys in KV. additive: a header, not a redesign.
+
+MCP consumers need identity          OAuth 2.1, per the 2026-07-28 stateless spec
+```
+
+**Cross-device is the one likely to bite first**, and it is about the actual
+primary user: he reads Carter in bed on a phone and works at a desk.
+`localStorage` does not follow him between them.
+
+**The sync-code option deserves naming now** because it is so much cheaper than
+auth and solves the real problem. Six characters mapping to a progress blob in
+Cloudflare KV. No email, no password, no personal data, therefore no consent
+banner and no GDPR surface. Type it once on the other device.
+
+**Note the cost argument weakened.** "No database" was partly about free tiers —
+but Cloudflare's free tier includes KV and D1, so a minimal identity layer is
+free-tier-compatible on the platform we chose.
+
+**What to preserve now so this stays cheap:**
+
+- the progress schema (§6.5) is already a serialisable blob — it can be stored
+  remotely without reshaping
+- API endpoints stay additive: an `Authorization` header can be introduced
+  without changing any response body
+- **no user identity is baked into any data shape.** Groups, lessons and progress
+  are independent of who is reading them, and that must remain true.
 
 ## 12. Open questions
 
