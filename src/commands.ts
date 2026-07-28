@@ -196,16 +196,42 @@ export function orders(name: string, element?: string): {
 }
 
 /**
+ * How many elements have each order. {1: 1, 2: 1, 4: 6} means one identity,
+ * one element of order 2, six of order 4.
+ *
+ * ⚑ The sharpest cheap invariant there is. Q₈ and D₄ agree on order, generator
+ * count, abelian-ness, largest element order and whether everything is
+ * self-inverse — every summary property matches — and they are NOT isomorphic.
+ * This is what tells them apart:
+ *
+ *     Q₈   {1:1, 2:1, 4:6}    exactly ONE element of order 2
+ *     D₄   {1:1, 2:5, 4:2}    five of them
+ *
+ * Isomorphism preserves element order, so two groups whose profiles differ
+ * cannot possibly be isomorphic. (The converse fails — matching profiles do not
+ * prove isomorphism — so this refutes, it does not confirm.)
+ */
+export function orderProfile(g: Group): Record<number, number> {
+  const counts: Record<number, number> = {};
+  for (const x of g.elements) {
+    const n = order(g, x);
+    counts[n] = (counts[n] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/**
  * Two groups side by side.
  *
  * `sameOrder` and `distinguishedBy` are the point: two groups of the same size
  * are not the same group, and this names what actually separates them.
  */
 export function diff(a: string, b: string): {
-  a: Summary & { largestElementOrder: number; squares: Record<string, string> };
-  b: Summary & { largestElementOrder: number; squares: Record<string, string> };
+  a: Summary & { largestElementOrder: number; squares: Record<string, string>; orderProfile: Record<number, number> };
+  b: Summary & { largestElementOrder: number; squares: Record<string, string>; orderProfile: Record<number, number> };
   sameOrder: boolean;
   distinguishedBy: string[];
+  possiblyIsomorphic: boolean;
 } {
   const ga = need(a);
   const gb = need(b);
@@ -213,6 +239,7 @@ export function diff(a: string, b: string): {
     ...summarise(g),
     largestElementOrder: Math.max(...g.elements.map((x) => order(g, x))),
     squares: squares(g),
+    orderProfile: orderProfile(g),
   });
   const da = decorate(ga);
   const db = decorate(gb);
@@ -223,8 +250,19 @@ export function diff(a: string, b: string): {
   if (da.allSelfInverse !== db.allSelfInverse) distinguishedBy.push("all elements self-inverse");
   if (da.largestElementOrder !== db.largestElementOrder) distinguishedBy.push("largest element order");
   if (da.generators.length !== db.generators.length) distinguishedBy.push("generators needed");
+  if (JSON.stringify(da.orderProfile) !== JSON.stringify(db.orderProfile)) {
+    distinguishedBy.push("how many elements of each order");
+  }
 
-  return { a: da, b: db, sameOrder: da.order === db.order, distinguishedBy };
+  return {
+    a: da,
+    b: db,
+    sameOrder: da.order === db.order,
+    distinguishedBy,
+    // "nothing here distinguishes them" is NOT proof of isomorphism — these are
+    // refuting invariants only. Hence the deliberately weak word.
+    possiblyIsomorphic: distinguishedBy.length === 0,
+  };
 }
 
 /** Validate a file. Throws GroupValidationError if it is not a group. */

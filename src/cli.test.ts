@@ -230,7 +230,7 @@ describe("the CLI process", () => {
   });
 
   test("an invalid group file exits 1 with the phase that failed", () => {
-    const r = cli("check", "groups/drafts/q8.group.json");
+    const r = cli("check", "groups/drafts/broken.group.json");
     assert.equal(r.code, 1);
     assert.match(r.stderr, /phase 3/);
     assert.match(r.stderr, /every node needs one arrow of each colour/);

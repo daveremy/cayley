@@ -1,0 +1,20 @@
+{
+  "$schema": "../schema/group.schema.json",
+  "name": "D₄",
+  "aliases": ["D4", "D₈", "D8", "dihedral group of the square", "the square's symmetries"],
+  "elements": ["e", "r", "r2", "r3", "f", "rf", "r2f", "r3f"],
+  "identity": "e",
+  "generators": ["r", "f"],
+  "arrows": {
+    "r": {
+      "e": "r", "r": "r2", "r2": "r3", "r3": "e",
+      "f": "r3f", "rf": "f", "r2f": "rf", "r3f": "r2f"
+    },
+    "f": {
+      "e": "f", "r": "rf", "r2": "r2f", "r3": "r3f",
+      "f": "e", "rf": "r", "r2f": "r2", "r3f": "r3"
+    }
+  },
+  "notes": "The eight symmetries of a square: four rotations (e, r, r², r³) and four reflections (f, rf, r²f, r³f). Extraction is cheap here — you can do it with a piece of paper, which is exactly what makes it a better first non-abelian group than Q₈. Presentation: ⟨r, f | r⁴ = f² = e, frf = r⁻¹⟩. That last relation is the one that makes it non-abelian: pushing a rotation through a flip reverses it. Note the naming hazard — some authors write D₄ (indexing by the polygon's sides), others D₈ (by the number of elements). Same group either way.",
+  "source": "hand-authored — the square, by hand"
+}

@@ -88,6 +88,12 @@ function printDiff(r: ReturnType<typeof cmd.diff>): void {
   row("all self-inverse", yn(r.a.allSelfInverse), yn(r.b.allSelfInverse));
   row("largest element order", r.a.largestElementOrder, r.b.largestElementOrder);
 
+  const prof = (p: Record<number, number>) =>
+    Object.entries(p).map(([o, n]) => `${n}×order-${o}`).join("  ");
+  console.log(`\n  how many elements of each order:`);
+  console.log(`    ${pad(r.a.name, 6)}${prof(r.a.orderProfile)}`);
+  console.log(`    ${pad(r.b.name, 6)}${prof(r.b.orderProfile)}`);
+
   console.log(`\n  diagonals (every element squared):`);
   for (const g of [r.a, r.b]) {
     console.log(`    ${pad(g.name, 6)}${Object.entries(g.squares).map(([k, v]) => `${k}²=${v}`).join("  ")}`);
@@ -96,7 +102,9 @@ function printDiff(r: ReturnType<typeof cmd.diff>): void {
     r.distinguishedBy.length
       ? `\n  ${r.sameOrder ? "Same order, different groups." : "Different groups."} ` +
           `Told apart by: ${r.distinguishedBy.join(", ")}.\n`
-      : `\n  Nothing here tells them apart — they may be isomorphic.\n`,
+      : `\n  Nothing here tells them apart. These invariants can only REFUTE\n` +
+        `  isomorphism, never confirm it — so this is "no evidence against",\n` +
+        `  not proof that they are the same group.\n`,
   );
 }
 

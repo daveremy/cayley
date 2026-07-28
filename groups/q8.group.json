@@ -1,0 +1,20 @@
+{
+  "$schema": "../schema/group.schema.json",
+  "name": "Q₈",
+  "aliases": ["Q8", "Q₄", "Q4", "quaternion group", "dicyclic group of order 8"],
+  "elements": ["1", "i", "j", "k", "-1", "-i", "-j", "-k"],
+  "identity": "1",
+  "generators": ["i", "j"],
+  "arrows": {
+    "i": {
+      "1": "i", "i": "-1", "j": "-k", "k": "j",
+      "-1": "-i", "-i": "1", "-j": "k", "-k": "-j"
+    },
+    "j": {
+      "1": "j", "i": "k", "j": "-1", "k": "-i",
+      "-1": "-j", "-i": "-k", "-j": "1", "-k": "i"
+    }
+  },
+  "notes": "Hamilton's quaternions, 1843 — the eight units of a number system he spent thirteen years looking for, then carved into Broom Bridge in Dublin when it came to him on a walk. The arrows were extracted from quaternion algebra (i²=j²=k²=-1; ijk cycles forward positive, backward negative); that extraction is Hamilton's domain, not group theory. What makes it worth studying HERE: it is only the second non-abelian group met, it needs two generators because ⟨i⟩ reaches just four of the eight, and it is one of exactly two non-abelian groups of order 8 — D₄ being the other. Unusually, every one of its subgroups is normal, which is rare enough to have its own name: a Hamiltonian group. Carter writes it Q₄; most sources write Q₈. Same group.",
+  "source": "extracted from quaternion algebra — Carter, Visual Group Theory, exercise 4.6(b)"
+}

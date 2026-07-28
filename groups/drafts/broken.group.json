@@ -1,0 +1,11 @@
+{
+  "$schema": "../../schema/group.schema.json",
+  "name": "deliberately broken",
+  "elements": ["e", "a", "a2"],
+  "identity": "e",
+  "generators": ["a"],
+  "arrows": {
+    "a": { "e": "a", "a": "a2" }
+  },
+  "notes": "A permanent test fixture: the a-arrow has no exit from a2, so this fails phase 3. Lives here so the CLI's failure path has something reliable to fail on — the previous test depended on Q₈ being incomplete, and broke the moment Q₈ was finished."
+}

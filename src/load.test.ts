@@ -36,7 +36,12 @@ describe("the library loads and self-audits", () => {
   });
 
   test("drafts/ is not loaded — it holds work in progress, valid or not", () => {
-    assert.ok(!lib.some((g) => g.name === "Q₈"), "the Q₈ draft leaked into the library");
+    // Deliberately invalid; if drafts/ were loaded the whole library would fail.
+    assert.ok(!lib.some((g) => g.name === "deliberately broken"), "a draft leaked into the library");
+  });
+
+  test("Q₈ graduated from drafts into the library", () => {
+    assert.ok(lib.some((g) => g.name === "Q₈"));
   });
 
   test("sorted smallest first", () => {
