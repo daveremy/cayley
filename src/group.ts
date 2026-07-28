@@ -27,7 +27,28 @@
  *     element  ↔  node          word     ↔  path
  *     generator ↔ arrow colour  x · y    ↔  walk from x along y's path
  *
- * Just a label: "a2", "RB", "-k". The maths does not care what it is called.
+ * Just a label: "a2", "RB", "-k". The math does not care what it is called —
+ * shuffle the element list and you have the same group.
+ *
+ * ⚑ AN ELEMENT IS A MOVE, NOT A THING BEING MOVED.
+ *
+ * The commonest way to misread a symmetry group, and it costs days. Two sets are
+ * in play and only one of them is the group:
+ *
+ *     the square's 4 corners   the set being acted ON.  NOT the group.
+ *     the 8 symmetries         the group. Its elements are the moves.
+ *
+ * D₄ has 8 elements and the square has 4 corners, so the corners cannot be the
+ * elements. The sharper test is the operation: "corner 1 · corner 3" is
+ * meaningless, while "rotate 90 · flip" obviously is not. Moves compose. Corners
+ * do not. Only one of those two sets can be a group.
+ *
+ * The verb reading is an interpretation, not part of the definition — ℤ under
+ * addition is a group and 5 is happily just a number. But it is ALWAYS
+ * available: Cayley's theorem says every group is isomorphic to a group of
+ * permutations, so the elements of any group can be viewed as actions. Same
+ * Cayley as the diagrams, and not a coincidence — the diagram is a picture of
+ * the group acting on itself.
  */
 export type Element = string;
 
@@ -134,7 +155,25 @@ function computeWords(g: Group): Words {
 /**
  * x · y, computed from arrows alone.
  *
- * y names a route from the identity — so walk that same route, but start at x.
+ * ⚑ Two different claims, worth keeping apart:
+ *
+ *   WHAT IT IS         the group's binary operation. Combine two elements, get
+ *                      a third. In move-language: do x, THEN do y. This is an
+ *                      axiom — a group has an operation, by definition.
+ *
+ *   HOW THIS COMPUTES  express y as a word, then walk that word starting from x
+ *                      instead of from the identity.
+ *
+ * The second only works because the arrows encode the first. Arrows are a
+ * REPRESENTATION of the operation; the operation exists whether or not anybody
+ * draws it. Confusing the mechanism for the meaning is how people end up
+ * believing a group IS its diagram.
+ *
+ * Note also that the answer does not depend on WHICH word names y. In V₄, "RB"
+ * can be reached as R·B or as B·R, and both give identical products throughout
+ * the table. That path-independence is not luck — it is associativity, and it is
+ * precisely what makes the thing a group. Feed this function arrows that are not
+ * a group and the two routes start to disagree.
  */
 export function multiply(g: Group, x: Element, y: Element): Element {
   const path = words(g).get(y);
