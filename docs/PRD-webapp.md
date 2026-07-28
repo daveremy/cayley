@@ -24,8 +24,9 @@ The primary user is the author: a working software developer, not math-native,
 currently learning group theory from Carter's *Visual Group Theory*.
 
 That matters more than usual, because **his failures are logged with
-timestamps.** `curriculum/atlas-walk-log.md` records, over one week, every place
-he got stuck, what unstuck him, and whether it held:
+timestamps.** [`learner-failure-log.md`](./learner-failure-log.md) — in this
+repo, extracted from a running log kept during the learning — records every place
+he got stuck over one week, what unstuck him, and whether it held:
 
 | stuck point | cost |
 |---|---|
@@ -189,16 +190,16 @@ it sprawling into a GE clone.
 
 ## 7. Architecture
 
-### 7.1 Layering — already built
+### 7.1 Layering — mostly built, with one real seam missing
 
 ```
         group.ts        pure math, ZERO imports          ← runs in a browser today
            ↑
         errors.ts       typed failures                   ← browser-ready
            ↑
-        load.ts         files → validated groups         ← ONLY node-dependent module
+        load.ts         files → validated groups         ← node:fs, node:path
            ↑
-      commands.ts       input → data, no printing        ← browser-ready
+      commands.ts       input → data, no printing        ← ⚠ see below
            ↑
      ┌─────┴──────┬──────────────┐
    cli.ts       web             api/mcp
@@ -206,11 +207,40 @@ it sprawling into a GE clone.
 ```
 
 `commands.ts` was written for exactly this. Its return shapes **are** the
-`--json` output and therefore the API response bodies. A test asserts it never
-writes to stdout.
+`--json` output and therefore the API response bodies, and a test asserts it
+never writes to stdout.
 
-**Only `load.ts` needs a browser variant** — swap `readFileSync` for a bundled
-JSON import or `fetch`. Roughly a day.
+### ⚠ 7.1a The browser seam — a real M0 task, not a footnote
+
+**`commands.ts` is not importable in a browser as it stands**, and an earlier
+draft of this PRD claimed otherwise. The check that produced that claim was
+shallow: it grepped for direct `node:` imports and did not follow the graph.
+
+```
+commands.ts  →  load.ts  →  node:fs, node:path
+```
+
+A client bundle importing `commands.ts` drags Node built-ins in transitively.
+Depending on the bundler that is either a build failure or, worse, a shim that
+fails at runtime.
+
+**Three ways to cut the seam, in preference order:**
+
+1. **Inject the library.** `commands.ts` takes `Group[]` (or a small
+   `GroupSource` interface) as a parameter instead of importing `loadLibrary`.
+   Purest, testable, no bundler configuration. Touches every command signature.
+2. **Split the module.** `load.ts` keeps `validate()` (pure, browser-safe) and a
+   new `load.node.ts` holds the filesystem parts. `commands.ts` imports only the
+   pure half.
+3. **Bundler alias.** Point `./load.ts` at a browser implementation in the Vite
+   config. Least code, but the coupling becomes invisible and build-tool-specific.
+
+Option 1 or 2. **This must be resolved in M0 before any lesson work** — it is a
+signature change across the command surface and gets more expensive later.
+
+Once cut, the browser needs a `loadLibrary` equivalent: the group files are
+static JSON, so a bundled import or a `fetch` of a prebuilt index. `validate()`
+runs unchanged in either environment.
 
 ### 7.2 Framework — recommendation with the trade-off shown
 
@@ -225,8 +255,10 @@ JSON import or `fetch`. Roughly a day.
 Astro ships near-zero JS on content pages — which is the performance budget's
 main lever. The explorer becomes one heavier island or route.
 
-Risk to check early: cayley's imports use explicit `.ts` extensions (Node
-strip-types style). Vite handles this, but verify in M0 before committing.
+Two risks to check early, both in M0:
+- cayley's imports use explicit `.ts` extensions (Node strip-types style). Vite
+  handles this, but verify before committing.
+- the browser seam in 7.1a. Do not start lessons until it is cut.
 
 ### 7.3 Repo
 
@@ -282,7 +314,7 @@ Each independently shippable.
 
 | | | proves |
 |---|---|---|
-| **M0** | engine in a browser, deployed, one page | the pipeline works |
+| **M0** | browser seam cut (7.1a), engine in a browser, deployed, one page | the pipeline works |
 | **M1** | lesson 1 end to end | the lesson format works on its author |
 | **M2** | lessons 1–5 + progress + sharing | it is a tutorial |
 | **M3** | explorer mode | it is a tool |
@@ -300,6 +332,7 @@ M1 is the real gate. **If lesson 1 does not work on the author, stop.**
 | **building instead of learning** | the tutorial may not get ahead of the author |
 | **scope: two products in one** | tutorial ships first; explorer is M3, not M1 |
 | **framework bloat kills "fast"** | measure the budget in M0, not at the end |
+| **hidden Node deps in the engine** | 7.1a — cut the seam in M0, before it is expensive |
 | **beautiful is subjective** | typography and computed diagrams are objective proxies |
 | **red/green diagrams exclude readers** | colour never the sole channel, from day one |
 
