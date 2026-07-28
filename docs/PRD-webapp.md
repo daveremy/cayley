@@ -95,6 +95,90 @@ Four consequences, and they are the reason this is principle #1:
 **Generated or hand-drawn assets are permitted only where being wrong cannot
 teach something false** — decoration, illustration, mood. Never the mathematics.
 
+## 4a. ⚑ The second principle: context boundaries
+
+Borrowed from domain-driven design, and it is the same problem. **Two bounded
+contexts are in play at all times, and confusing them is the single most common
+source of pain in this project's failure log.**
+
+```
+DOMAIN CONTEXT                      GROUP THEORY CONTEXT
+────────────────────────────────    ──────────────────────────────────
+quaternions · squares · pentagons   elements · generators · words
+i, j, k  /  rotations  /  corners   e, a, a²  /  ij, ji
+i² = −1 because Hamilton said so    order, inverse, subgroup, coset
+"what does k mean?"                 "what is its order?"
+              │                                   │
+              └────────── translation ────────────┘
+                        THE EXTRACTION
+```
+
+### 4a.1 Every group declares its domain
+
+Currently domain provenance lives in free-text `notes`. It should be structured
+so the app can *say* which context a fact belongs to:
+
+```json
+"domain": {
+  "name": "quaternions",
+  "field": "hypercomplex number systems",
+  "origin": "Hamilton, 1843",
+  "elementsAre": "the eight unit quaternions",
+  "operationIs": "quaternion multiplication",
+  "tollNotes": "i²=j²=k²=−1 is Hamilton's definition, not derivable here"
+}
+```
+
+That last field is the important one. **A learner who cannot distinguish domain
+toll from subject matter will believe they are failing at group theory when they
+are failing at quaternions** — which happened, and had to be asked about.
+
+### 4a.2 Labels are a view, switchable at will
+
+The same group carries several label registers, and each hides what the others
+show:
+
+```
+DOMAIN LABELS     1, i, j, k, −1, −i, −j, −k
+                  meaning visible · movement invisible
+                  "k" tells you nothing about how to reach k
+
+PATH LABELS       (e), i, j, ij, ii, iii, iij, ji
+                  movement visible · meaning invisible
+                  k = ij and −k = ji — NON-COMMUTATIVITY, readable off the labels
+                  Carter Definition 4.1
+
+INDEX LABELS      0..n−1
+                  neither · useful only for comparing structure across groups
+```
+
+C₅ gets meaning and movement in one register for free — `a³` is simultaneously a
+name and a path — which is exactly why it felt easy. **Q₈ cannot**, because its
+names come from a number system that predates the diagram by a century.
+
+**Do the work in path labels; translate back at the boundary.** That is the
+proposal, and it is how applied mathematics actually runs: model, compute in the
+abstraction, interpret the result back into the domain.
+
+⚠ One caveat: path labels do not compose by concatenation. `ij` followed by `i`
+is not `iji` in canonical form — reducing it needs the group's relations, and in
+general that is the *word problem*, which is undecidable. **The engine therefore
+walks arrows rather than manipulating strings**; labels stay a display concern.
+
+### 4a.3 Terminology is tagged by context
+
+Every term the tutorial introduces is marked with where it comes from. The
+recurring traps stop being ambient and become visible boundary crossings:
+
+| term | context | trap |
+|---|---|---|
+| "symmetry group" | description | a *phrase*, not a family name |
+| "symmetric group Sₙ" | group theory | a *named family*. One letter apart. |
+| `\|G\|` | group theory | how many elements |
+| `\|a\|` | group theory | an element's order. Same bars. |
+| `i² = −1` | domain (Hamilton) | decreed, not derived |
+| `×` | four contexts | Cartesian, cross, direct product, multiplication |
+
 ## 5. Non-goals
 
 - **Not a Group Explorer replacement.** GE is exhaustive and expert-facing. This
@@ -113,7 +197,7 @@ teach something false** — decoration, illustration, mood. Never the mathematic
 
 | | |
 |---|---|
-| **Free hosting** | Vercel free tier. No paid services in the critical path. |
+| **Free hosting** | Cloudflare Pages + Workers — see §7.5. No paid services in the critical path. |
 | **Fast** | see budget below |
 | **Beautiful** | see design direction below |
 | **For developers / non-math-natives** | the three-register principle |
@@ -354,7 +438,7 @@ a subdirectory natively.
 
 ### 7.4 API and MCP (issue #10)
 
-Vercel serverless functions wrapping `commands.ts`. Error mapping already exists:
+Edge functions wrapping `commands.ts`. Error mapping already exists:
 `UnknownGroupError → 404`, `UsageError → 400`, `GroupValidationError → 422`.
 
 **MCP timing is fortunate:** the spec went stateless on 2026-07-28 — removing the
@@ -375,9 +459,46 @@ POST /api/v1/validate                  is this JSON a group? ← the novel one
 POST /api/mcp                          stateless MCP transport
 ```
 
-**Free-tier protection (gemini, round 2).** Vercel's hobby tier has finite
-invocations and a short function timeout, and an unauthenticated public API is
-the obvious way to exhaust both.
+#### Who actually uses this — the consumers the endpoints exist for
+
+An API without named consumers is a spec, not a decision. Five, in rough order of
+how much they justify the work:
+
+```
+1. THE APP ITSELF          the web front end is consumer zero. If the API is not
+                           good enough for our own explorer, it is not good.
+
+2. AN AGENT CHECKING A     "is this set of moves a group?" An LLM asked a group-
+   CLAIM (the novel one)   theoretic question can VERIFY instead of guessing.
+                           POST /validate returns failures in group-theory
+                           language: "generators [i,j] do not reach [-k]".
+                           Nothing else on the internet does this.
+
+3. A LEARNER'S SCRIPT      checking homework, generating practice, sanity-
+                           checking a hand-built table. curl and jq.
+
+4. ANOTHER TEACHING TOOL   embedding group data. Everything is deterministic and
+                           cacheable, so this costs us nothing.
+
+5. NOTEBOOK / REPL         exploratory use from Python or JS without installing
+                           anything.
+```
+
+**Consumer 2 is the one that makes MCP worth building.** An agent that can *check*
+a group-theoretic claim rather than produce plausible text about it is a genuinely
+different capability — and it is the same argument as this project's own
+"computed, not drawn" principle, applied to reasoning instead of pictures.
+
+**MCP tools**, one per command, plus:
+
+```
+validate_group    author a group, get told precisely why it is not one
+compare_groups    are these two the same? which invariant separates them?
+```
+
+#### Free-tier protection
+
+An unauthenticated public API is the obvious way to exhaust any free tier.
 
 ```
 cache hard          every GET is deterministic and immutable. s-maxage=31536000,
@@ -392,7 +513,40 @@ bound the input     POST /validate caps element count and payload size. The
 ```
 
 That last one is a real vulnerability, not a hypothetical: `isAssociative` is a
-triple loop and the timeout is short.
+triple loop, and Cloudflare's free tier allows **10 ms of CPU per invocation**.
+Order 24 is ~14k comparisons and fine; order 168 is 4.7M and is not. The cap is
+not politeness, it is the difference between working and not.
+
+### 7.5 Hosting — Cloudflare, not Vercel
+
+The PRD originally said Vercel because that is what was asked for. Researching it
+properly reverses the recommendation:
+
+| | Vercel Hobby | Cloudflare Pages + Workers |
+|---|---|---|
+| static bandwidth | **100 GB/mo hard cap** | unmetered |
+| over the cap | **project PAUSES** until next cycle | n/a |
+| requests | 1M/mo | 100k/**day** (~3M/mo), static excluded |
+| cold start | tens–hundreds of ms | sub-10 ms (V8 isolates) |
+| commercial use | **prohibited on Hobby** | permitted |
+| CPU per request | generous | **10 ms** ← the one real constraint |
+
+**Three things decide it:**
+
+1. **Vercel pauses the whole project at 100 GB.** One good day on Hacker News
+   takes a learning tool offline for up to a month. That is not a risk worth
+   carrying for a site whose entire purpose is being read.
+2. **Static assets do not count against Cloudflare's request limit**, and this
+   site is almost entirely static — which is exactly the shape the free tier
+   rewards.
+3. **Vercel Hobby forbids commercial use.** Even sponsorship on an open-source
+   educational project sits awkwardly against that.
+
+**The cost:** 10 ms CPU per invocation. That constrains `POST /validate` — which
+we were bounding anyway for denial-of-service reasons. The constraint and the
+mitigation coincide.
+
+Astro has a first-class Cloudflare adapter; nothing else in the plan changes.
 
 ## 8. Content strategy — the actual hard part
 
@@ -453,7 +607,68 @@ M1 is the real gate. **If lesson 1 does not work on the author, stop.**
 | **beautiful is subjective** | typography and computed diagrams are objective proxies |
 | **red/green diagrams exclude readers** | colour never the sole channel, from day one |
 
-## 11. Open questions
+## 11. Success, licensing, and the things that make it a project
+
+### 11.1 How we would know it worked
+
+Ordered by how much they actually mean:
+
+```
+M1  the author works lesson 1 cold and it lands            ← the only gate
+M2  he finishes lessons 2–5 without being talked through them
+M3  he reaches for the explorer instead of the CLI
+M4  something other than our own front end calls the API
+M6  a second person completes lesson 1
+```
+
+**`firstTry` is the honest metric.** "Completed" is not evidence — this project
+logged a week of recognition as mastery before the learner said so out loud.
+
+### 11.2 Analytics
+
+**None by default.** No third-party scripts, no cookies, no fingerprinting. It
+conflicts with the performance budget, the offline requirement, and the audience.
+
+If completion data is ever wanted: self-hosted, aggregate, opt-in, and it must
+never be the reason a page ships JavaScript.
+
+### 11.3 Licensing — two licences, deliberately
+
+```
+code      MIT            already in place
+content   CC BY 4.0      lesson prose, diagrams, the failure log
+```
+
+Separating them is standard for a project that is both software and writing, and
+CC BY means the lessons can be reused by other educators with attribution — which
+is the point of writing them.
+
+### 11.4 Contribution model
+
+Open source from day one, but the tutorial is not a wiki. Three tiers:
+
+```
+GROUPS      welcome. A .group.json file plus `cayley check` passing is the whole
+            bar. The validator IS the review.
+BUGS/CODE   normal PRs.
+LESSONS     by invitation, at least until the format is proven. The tutorial may
+            not get ahead of its author, and that constraint does not survive
+            open lesson contribution.
+```
+
+### 11.5 Browser support
+
+Last two versions of Chrome, Firefox, Safari, Edge, plus iOS Safari — the primary
+user reads on a phone. No IE, no polyfill budget. Graceful degradation: **lesson
+prose must be readable with JavaScript disabled**, since it is static HTML anyway.
+
+### 11.6 Explicit non-goals, added
+
+- **No internationalisation.** English only. Notation is already universal.
+- **No video.** 3Blue1Brown exists and is better at it.
+- **No user-generated lessons** (see 11.4).
+
+## 12. Open questions
 
 1. ~~**Astro or something smaller?**~~ **Resolved — Astro.** Both reviewers
    independently agreed: SSG keeps lesson pages under budget, and islands handle
