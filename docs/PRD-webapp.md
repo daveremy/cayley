@@ -430,8 +430,21 @@ web      import lib from './groups.json'; cmd.list(lib)    ← bundled at build
 worker   const lib = GROUPS;              cmd.list(lib)    ← bundled
 ```
 
-`check(path)` stays **CLI-only** — it takes a file path, which the web never has.
-Its browser equivalent is `validate()` on already-parsed JSON.
+**(c) Move `check(path)` OUT of `commands.ts` entirely.**
+
+Calling it "CLI-only" at the API level changes nothing — if it *lives* in
+`commands.ts` it still imports `loadGroup`, and every web bundle importing any
+other command inherits `node:fs`. (This draft made that exact mistake three lines
+after warning against it. The warning is easy to write and easy to violate.)
+
+```
+commands.ts   describe(g: Group): Detail          ← PURE. takes a Group.
+cli.ts        check(path) = describe(loadGroup(path))   ← Node. reads the file.
+```
+
+`check` is a CLI concern — *read this file, validate it, report* — and the
+reporting half is already pure. The web equivalent is `validate()` on JSON it
+already has.
 
 **Resulting import graph, every arrow pointing one way:**
 
@@ -443,7 +456,13 @@ group.ts · errors.ts        pure
 commands.ts   load.ts       commands PURE · load is Node
      ↑           ↑
     web         cli.ts      web takes bundled JSON · cli reads files
+                            and owns check(path)
 ```
+
+**The test that settles it:** `import * as cmd from "./commands.ts"` in a Vite
+build must produce a bundle containing zero Node built-ins. Not "should" — CI
+should assert it, because this seam has now been specified wrongly in four
+successive drafts and will drift again.
 
 **Purity is a property of the import graph, not of the function body.** That
 distinction is the entire content of this section, and it is what three
