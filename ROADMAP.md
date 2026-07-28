@@ -15,6 +15,39 @@ keeps the reasoning; the issues keep the state.
 | [8](https://github.com/daveremy/cayley/issues/8) | `isAssociative` is O(n³) | `hardening` |
 | [9](https://github.com/daveremy/cayley/issues/9) | Lazy library index | `hardening` |
 | [10](https://github.com/daveremy/cayley/issues/10) | Host it, with a strong API and MCP | `library` |
+| [11](https://github.com/daveremy/cayley/issues/11) | Exercise type: solve a domain problem with structure | `learning` |
+| [12](https://github.com/daveremy/cayley/issues/12) | Teach reading a table: is it a group? which one? | `learning` |
+
+## The web app
+
+Planned in [`docs/PRD-webapp.md`](docs/PRD-webapp.md), evidence base in
+[`docs/learner-failure-log.md`](docs/learner-failure-log.md). Reviewed by codex
+and gemini, three rounds.
+
+**Each milestone independently shippable. M1 is the gate — if lesson 1 does not
+work on its author, stop.**
+
+| milestone | | issues |
+|---|---|---|
+| **M0** | pipeline works | [13](https://github.com/daveremy/cayley/issues/13) browser seam · [14](https://github.com/daveremy/cayley/issues/14) Astro+Vercel+budget · [15](https://github.com/daveremy/cayley/issues/15) build-time math · [16](https://github.com/daveremy/cayley/issues/16) design system · [17](https://github.com/daveremy/cayley/issues/17) a11y |
+| **M1** | the format works | [18](https://github.com/daveremy/cayley/issues/18) lesson 1 — elements are moves |
+| **M2** | it is a tutorial | [19](https://github.com/daveremy/cayley/issues/19) lessons 2–5 · [20](https://github.com/daveremy/cayley/issues/20) progress + sharing |
+| **M3** | it is a tool | [21](https://github.com/daveremy/cayley/issues/21) explorer · [4](https://github.com/daveremy/cayley/issues/4) diagrams |
+| **M4/5** | it is a service | [22](https://github.com/daveremy/cayley/issues/22) API + MCP |
+| **M6** | it scales | [2](https://github.com/daveremy/cayley/issues/2) families · [3](https://github.com/daveremy/cayley/issues/3) exercise generator |
+
+### The two principles that decide everything
+
+**Everything displayed is COMPUTED from the engine.** No mathematics is ever
+authored by hand. The app therefore cannot display something false, a lesson
+written for C₄ works for C₅ for free, and authoring becomes prose plus a choice
+of group. Demonstrated negatively on 2026-07-28: two frontier image models drew a
+cross-product diagram with the vectors at 150° and a right-angle marker between
+them, and neither noticed.
+
+**The tutorial may never get ahead of its author.** Lesson *N* covers only
+material earned through exercises. This paces the project honestly and stops it
+sprawling into a Group Explorer clone.
 
 ## Next up
 
