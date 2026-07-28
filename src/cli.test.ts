@@ -34,6 +34,7 @@ const SAMPLE: Record<string, string[]> = {
   list: [],
   show: ["C5"],
   table: ["C5"],
+  arrows: ["C5"],
   mul: ["C5", "a2", "a3"],
   word: ["C5", "a3"],
   order: ["C5"],

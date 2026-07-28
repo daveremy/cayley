@@ -18,6 +18,7 @@ const HELP = `
   cayley list                      every group in the library
   cayley show <group>              one group, in full
   cayley table <group>             the multiplication table
+  cayley arrows <group>            the Cayley diagram, as data
   cayley mul <group> <x> <y>       one product, and the path walked
   cayley word <group> <element>    an element's path from the identity
   cayley order <group> [element]   element orders
@@ -130,6 +131,19 @@ function run(command: string, args: string[], json: boolean): void {
     case "table": {
       const r = cmd.tableOf(arg(0, "a group name"));
       return out(r, () => printTable(r));
+    }
+    case "arrows": {
+      const r = cmd.arrowsOf(arg(0, "a group name"));
+      return out(r, () => {
+        console.log(`\n${r.group}   ${r.convention}\n`);
+        const froms = Object.keys(r.arrows[r.generators[0]]);
+        const w = Math.max(6, ...froms.map((f) => f.length + 2));
+        console.log("  " + pad("from", w) + r.generators.map((gen) => pad(`follow ${gen}`, w + 8)).join(""));
+        for (const from of froms) {
+          console.log("  " + pad(from, w) + r.generators.map((gen) => pad(`→ ${r.arrows[gen][from]}`, w + 8)).join(""));
+        }
+        console.log("");
+      });
     }
     case "mul": {
       const r = cmd.mul(arg(0, "a group name"), arg(1, "two elements"), arg(2, "a second element"));

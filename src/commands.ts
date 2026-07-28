@@ -182,6 +182,33 @@ export function word(name: string, element: string): {
   return { group: g.name, element, path, isIdentity: element === g.identity };
 }
 
+/**
+ * The raw arrows — the Cayley diagram as data.
+ *
+ * There when you have no picture in front of you. Every other command derives
+ * something; this one just shows you the primary source.
+ *
+ * Note the convention is stated in the output, not assumed. A printed diagram
+ * cannot tell you whether its arrowheads mean x·g or g·x, and the two disagree
+ * in any non-abelian group — Carter draws Q₈ with the opposite convention to
+ * this codebase, so the same trace produces k here and -k there. Both correct,
+ * different questions.
+ */
+export function arrowsOf(name: string): {
+  group: string;
+  convention: string;
+  generators: string[];
+  arrows: Record<string, Record<string, string>>;
+} {
+  const g = need(name);
+  return {
+    group: g.name,
+    convention: "arrows[gen][from] = from · gen   (right multiplication)",
+    generators: [...g.generators],
+    arrows: Object.fromEntries(g.generators.map((gen) => [gen, { ...g.arrows[gen] }])),
+  };
+}
+
 /** Element orders — one element, or all of them. */
 export function orders(name: string, element?: string): {
   group: string;
@@ -291,5 +318,5 @@ export function check(path: string): Detail & { file: string; valid: true } {
 }
 
 /** Every command, for the invariant tests and for --help. */
-export const COMMANDS = ["list", "show", "table", "mul", "word", "order", "diff", "check"] as const;
+export const COMMANDS = ["list", "show", "table", "arrows", "mul", "word", "order", "diff", "check"] as const;
 export type CommandName = (typeof COMMANDS)[number];
