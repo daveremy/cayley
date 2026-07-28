@@ -21,7 +21,8 @@ API / MCP    the engine as a service, for scripts and for agents.
 ## 2. Who it is for, and why that is unusually well-defined
 
 The primary user is the author: a working software developer, not math-native,
-currently learning group theory from Carter's *Visual Group Theory*.
+learning group theory — currently with Carter's *Visual Group Theory* alongside,
+though the project is not a companion to it (§3a).
 
 That matters more than usual, because **his failures are logged with
 timestamps.** [`learner-failure-log.md`](./learner-failure-log.md) — in this
@@ -70,6 +71,37 @@ g.elements.every(x =>                the code
 developer who has never read a quantifier can read one immediately once shown.
 
 **Three registers, one fact, always.** That is the product.
+
+## 3a. Influences, and where we leave them
+
+**This is not a companion to any book**, and positioning it as one would be both
+inaccurate and limiting.
+
+Real debts, stated plainly: **Carter's *Visual Group Theory*** shaped the
+visual-first approach; **Hofstadter's *GEB*** is why isomorphism reads as the
+interesting part; **Group Explorer** (Carter & Ellis, LGPL-3.0) is the reference
+implementation for visualising this material.
+
+**And we have already diverged, from first principles:**
+
+```
+arrows as the primary format    most tools store multiplication tables. Arrows
+                                are smaller and make the diagram the SOURCE,
+                                not a rendering.
+validation as pedagogy          five phases that teach by refusing. No book
+                                refuses anything.
+the convention in public        books state it once and hope. It belongs in the
+                                file header, enforced in code.
+the labelling law               arrows[g][identity] === g. Not in any text we
+                                know of; it emerged from review, and it catches
+                                a mislabelled diagram that passes every axiom.
+code as a third register        the entire premise. No book can do it.
+the failure log as curriculum   lesson order derived from measured stuck points,
+                                not from a table of contents.
+```
+
+**A learner should be able to use this having never heard of Carter.** The book
+is one good path in; this is another.
 
 ## 4. ⚑ The load-bearing principle
 
@@ -179,6 +211,30 @@ recurring traps stop being ambient and become visible boundary crossings:
 | `i² = −1` | domain (Hamilton) | decreed, not derived |
 | `×` | four contexts | Cartesian, cross, direct product, multiplication |
 
+## 4b. ⚑ The third principle: the repository is the product too
+
+Not a task — a **standing requirement**. This is open source, and the repository
+is the first thing anyone sees. It represents the same care as the code.
+
+```
+README            says what this is in ten seconds, and why it is different
+                  in thirty. Rewritten whenever the project changes shape.
+structure         no orphan files, no stale docs, no dead directories
+CI                green. always. it runs on every push.
+issues            real, current, and closed when done
+commits           explain WHY. the message is the design record.
+docs              a doc that no longer matches the code is worse than no doc
+```
+
+**"At all times" is the operative phrase.** Repository quality is not a cleanup
+you schedule; it is a property you either maintain or lose. A README describing
+last month's architecture is a bug with the same severity as a failing test —
+both tell a reader something false.
+
+**Enforcement:** CI runs the tests; a docs check flags references to files that
+no longer exist; and any PR that changes the shape of the project updates the
+README in the same commit.
+
 ## 5. Non-goals
 
 - **Not a Group Explorer replacement.** GE is exhaustive and expert-facing. This
@@ -269,6 +325,46 @@ and there is no network round-trip on first paint.
 
 A service worker is only needed to cache the app shell. Library growth past a few
 dozen groups would change this (issue #9), not before.
+
+### 6.3c ⚑ Voice — delight is a requirement, not decoration
+
+**The subject is genuinely funny and nobody says so.** A field where the standard
+notation for one group is `D₄` in half the literature and `D₈` in the other half,
+where "symmetry group" and "symmetric group" mean unrelated things, and where the
+largest sporadic simple group is officially called **the Monster** and its
+connection to modular forms is officially called **moonshine** — because the first
+people to notice it assumed someone had been drinking — is not a solemn field.
+It is only taught solemnly.
+
+**The rules:**
+
+```
+NEVER funny        the mathematics. Wrong math is not a joke, and a cute
+                   explanation that misleads is worse than a dull correct one.
+ALWAYS honest      the humour comes from telling the truth about a subject that
+                   is frequently absurd, not from jokes bolted onto it.
+NEVER cute         no puns for their own sake, no mascot, no exclamation marks
+                   doing emotional labour.
+NEVER condescending the reader is a competent adult who has not met this
+                   material. Those are different things.
+```
+
+**What it sounds like in practice** — all of these already exist in the codebase:
+
+```
+"not a group yet"           the "yet" is doing real work. It says: fixable.
+"the empty path — it IS the identity"
+"deliberately broken"       a test fixture, named honestly
+"₅ is not on your keyboard and life is short"
+"this is either profound or unsettling, depending on the hour"
+```
+
+**Where it lives:** error messages, the README, lesson prose, 404s, the CLI help,
+commit messages. **Where it does not:** inside a formal statement, inside a
+definition, or anywhere a reader might mistake a joke for a fact.
+
+The test is simple. **Would this make a smart friend smile, or make a struggling
+learner feel talked down to?** Only the first ships.
 
 ### 6.4 ⚑ Requirements NOT stated, that I would add
 

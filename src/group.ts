@@ -8,9 +8,10 @@
 //
 //     arrows[g][x] === "x · g"      (start at x, follow the g-arrow)
 //
-// This is the thing that cost us an hour on Carter's Q₄ diagram — a printed
-// arrowhead can't tell you whether it means x·g or g·x, and the two give
-// different answers in a non-abelian group. Here it is a line of code.
+// This exists because a printed Cayley diagram CANNOT STATE ITS OWN CONVENTION.
+// An arrowhead cannot tell you whether it means x·g or g·x, the two disagree in
+// any non-abelian group, and an afternoon was lost to exactly that. A drawing
+// cannot say which it means. A line of code can.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── The vocabulary ───────────────────────────────────────────────────────────

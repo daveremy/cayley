@@ -11,6 +11,10 @@
 // group. So the schema exists for VS Code's red squiggles — an authoring aid for
 // someone who doesn't compile — and every mathematical claim is checked here.
 //
+// The five phases below are meant to TEACH BY REFUSING. A validator that says
+// "expected string at arrows.i.-k" is correct and useless; one that says "every
+// node needs one arrow of each colour leaving it" has explained the axiom.
+//
 // This is also why there is no ajv dependency: the runtime shape check below is
 // hand-rolled, so its failures speak group theory rather than JSON.
 // ─────────────────────────────────────────────────────────────────────────────
