@@ -459,10 +459,32 @@ commands.ts   load.ts       commands PURE · load is Node
                             and owns check(path)
 ```
 
-**The test that settles it:** `import * as cmd from "./commands.ts"` in a Vite
-build must produce a bundle containing zero Node built-ins. Not "should" — CI
-should assert it, because this seam has now been specified wrongly in four
-successive drafts and will drift again.
+**The test that settles it — and it has to be written carefully.**
+
+The obvious version is worthless: a fixture that imports `commands.ts` without
+*using* it gets tree-shaken to nothing, so the bundle is empty and passes
+trivially while the seam is still broken (codex, round 9).
+
+**The fixture must consume real command output**, so the module graph survives
+shaking:
+
+```js
+// web/test/bundle-purity.fixture.js
+import * as cmd from "../../src/commands.ts";
+import lib from "../../src/groups.generated.json";
+
+// results must ESCAPE, or rollup removes the whole graph
+globalThis.__probe = [
+  cmd.show(lib, "C5").order,
+  cmd.tableOf(lib, "V4").elements.length,
+  cmd.diff(lib, "Q8", "D4").distinguishedBy,
+  Object.keys(cmd),          // forces the namespace to be materialised
+];
+```
+
+Then assert the emitted bundle contains no `node:` specifier and no `fs`/`path`
+shim. **CI, not a manual check** — this seam has now been specified wrongly in
+four successive drafts, and it will drift again the moment nobody is watching.
 
 **Purity is a property of the import graph, not of the function body.** That
 distinction is the entire content of this section, and it is what three
