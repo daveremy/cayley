@@ -400,21 +400,54 @@ A client bundle importing `commands.ts` drags Node built-ins in transitively.
 Depending on the bundler that is either a build failure or, worse, a shim that
 fails at runtime.
 
-**Three ways to cut the seam, in preference order:**
+**Two changes, and BOTH are required** (codex, rounds 5–7). Earlier drafts listed
+them as alternatives; they are not. Splitting `validate` out does not help
+`commands.ts`, which still needs `findGroup` and `loadLibrary`. Injecting the
+library does not help anyone who wants `validate` alone.
 
-1. **Inject the library.** `commands.ts` takes `Group[]` (or a small
-   `GroupSource` interface) as a parameter instead of importing `loadLibrary`.
-   Purest, testable, no bundler configuration. Touches every command signature.
-2. **Split the module.** Extract the pure half into a new `src/validate.ts`;
-   `load.ts` keeps only the filesystem parts and imports it. `commands.ts` then
-   imports `validate.ts` rather than `load.ts`. Exact layout below — and note it
-   is `validate.ts` that is new, *not* a `load.node.ts`: the name `load` should
-   go on filesystem loading, which is what it actually does.
-3. **Bundler alias.** Point `./load.ts` at a browser implementation in the Vite
-   config. Least code, but the coupling becomes invisible and build-tool-specific.
+**(a) Extract the pure half into `src/validate.ts`.**
 
-Option 1 or 2. **This must be resolved in M0 before any lesson work** — it is a
-signature change across the command surface and gets more expensive later.
+```
+src/validate.ts   NEW.  validate() + the five phases + normalise() +
+                        findGroup(name, library)  ← library REQUIRED,
+                        no loadLibrary() default parameter
+src/load.ts       KEEPS loadGroup(path), loadLibrary(dir), the cache.
+                        Imports validate.ts. Still Node — and that is fine,
+                        the CLI is a Node program.
+```
+
+`validate.ts` is the new file, *not* a `load.node.ts`. The name `load` belongs on
+filesystem loading, which is what it actually does.
+
+**(b) Inject the library into `commands.ts`.**
+
+```
+before   list()               → internally calls loadLibrary()
+after    list(lib: Group[])   → the caller supplies it
+
+cli.ts   const lib = loadLibrary();       cmd.list(lib)    ← Node, reads files
+web      import lib from './groups.json'; cmd.list(lib)    ← bundled at build
+worker   const lib = GROUPS;              cmd.list(lib)    ← bundled
+```
+
+`check(path)` stays **CLI-only** — it takes a file path, which the web never has.
+Its browser equivalent is `validate()` on already-parsed JSON.
+
+**Resulting import graph, every arrow pointing one way:**
+
+```
+group.ts · errors.ts        pure
+        ↑
+   validate.ts              pure — validate, normalise, findGroup
+     ↑         ↑
+commands.ts   load.ts       commands PURE · load is Node
+     ↑           ↑
+    web         cli.ts      web takes bundled JSON · cli reads files
+```
+
+**Purity is a property of the import graph, not of the function body.** That
+distinction is the entire content of this section, and it is what three
+successive drafts got wrong.
 
 Once cut, the browser needs a `loadLibrary` equivalent: the group files are
 static JSON, so a bundled import or a `fetch` of a prebuilt index.
