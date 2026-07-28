@@ -435,8 +435,8 @@ Two risks to check early, both in M0:
 ### 7.3 Repo
 
 Same repo, `web/` directory. The engine coupling is tight and version skew
-between a separate repo and the engine would be a recurring tax. Vercel deploys
-a subdirectory natively.
+between a separate repo and the engine would be a recurring tax. Cloudflare Pages
+builds from a subdirectory natively.
 
 ### 7.4 API and MCP (issue #10)
 
@@ -526,29 +526,66 @@ properly reverses the recommendation:
 
 | | Vercel Hobby | Cloudflare Pages + Workers |
 |---|---|---|
-| static bandwidth | **100 GB/mo hard cap** | unmetered |
-| over the cap | **project PAUSES** until next cycle | n/a |
-| requests | 1M/mo | 100k/**day** (~3M/mo), static excluded |
-| cold start | tens–hundreds of ms | sub-10 ms (V8 isolates) |
+| static bandwidth | ~100 GB/mo included | unmetered for static assets |
+| exceeding included usage | **deployment paused** | n/a for static |
+| requests | 1M/mo | 100k/**day**, static excluded |
 | commercial use | **prohibited on Hobby** | permitted |
-| CPU per request | generous | **10 ms** ← the one real constraint |
+| CPU per request | generous | **10 ms free tier** ← the real constraint |
 
-**Three things decide it:**
+*(Free-tier terms change. Verify against provider docs before relying on any row.)*
 
-1. **Vercel pauses the whole project at 100 GB.** One good day on Hacker News
-   takes a learning tool offline for up to a month. That is not a risk worth
-   carrying for a site whose entire purpose is being read.
-2. **Static assets do not count against Cloudflare's request limit**, and this
-   site is almost entirely static — which is exactly the shape the free tier
-   rewards.
-3. **Vercel Hobby forbids commercial use.** Even sponsorship on an open-source
-   educational project sits awkwardly against that.
+**Two things decide it, and one turned out to be the opposite of what I assumed:**
 
-**The cost:** 10 ms CPU per invocation. That constrains `POST /validate` — which
-we were bounding anyway for denial-of-service reasons. The constraint and the
-mitigation coincide.
+1. **Exceeding included Hobby usage pauses the deployment.** For a public
+   educational site whose entire purpose is being read, one good day on Hacker
+   News taking it offline is a bad failure mode. Cloudflare's static assets are
+   unmetered and do not count toward the request limit, which is exactly the
+   shape this site has.
+2. **⚑ Cloudflare is already the estate's DNS layer** (Karpathy, 2026-07-28).
+   neuralingual.com, daveremy.com and innerstacklabs.com all resolve to
+   Cloudflare nameservers. **This is not adding a fourth provider — it is using
+   more of an existing one**, and it is therefore the option with the *lowest*
+   integration tax, not the highest: DNS record and origin end up in the same
+   dashboard, instead of the cross-provider hop already lived with on
+   Neuralingual.
+
+*Not* deciding it: cold-start comparisons. Vercel Edge Functions and Cloudflare
+Workers are both V8-isolate based, so that difference is far less decisive than
+the bandwidth and commercial-use terms. An earlier draft overstated it.
+
+Vercel Hobby's non-commercial restriction is a documented platform term; whether
+it constrains sponsorship on an open-source project is a judgement, not a settled
+fact — but it is a latent trap either way.
+
+**The cost:** 10 ms CPU per invocation on the free tier. That constrains
+`POST /validate`, which we were bounding anyway for denial-of-service reasons —
+constraint and mitigation coincide. Escape hatch if it ever binds: Workers Paid
+(~$5/mo, 30 s CPU), which is strictly better than a site that pauses.
 
 Astro has a first-class Cloudflare adapter; nothing else in the plan changes.
+
+#### ⚠ 7.5a Credential scope — a hard requirement
+
+**Use a project-scoped Cloudflare API token. Never the account-wide credential.**
+
+That account controls DNS for **neuralingual.com** — a live business. A mistake
+in this project's tooling must not be able to touch production DNS. Blast-radius
+containment is the single most important operational constraint here.
+
+```
+scoped token       Pages:Edit + Workers:Edit on THIS project only
+stored             1Password
+never              the account-wide "Inner Stack Labs — Cloudflare" credential
+```
+
+**Open, and not mine to settle:** cayley is personal open source under
+`github.com/daveremy`, while the existing Cloudflare item lives in the Inner
+Stack Labs vault. Whether this runs under the business account at all is a
+question of IP and accounting cleanliness — Dave's call.
+
+**Two ops costs to absorb at deploy time:** `wrangler` is not installed anywhere
+yet and joins the CLI-update watch list; Cloudflare Pages/Workers becomes a new
+monitoring surface. Loop Moss in when it actually deploys, not before.
 
 ## 8. Content strategy — the actual hard part
 
@@ -620,11 +657,20 @@ M1  the author works lesson 1 cold and it lands            ← the only gate
 M2  he finishes lessons 2–5 without being talked through them
 M3  he reaches for the explorer instead of the CLI
 M4  something other than our own front end calls the API
-M6  a second person completes lesson 1
+M5  an agent uses the validator to check a claim it would otherwise guess at
+M6  the family generator produces a group nobody hand-authored
+──  a second person completes lesson 1                     ← not tied to a milestone
 ```
 
 **`firstTry` is the honest metric.** "Completed" is not evidence — this project
 logged a week of recognition as mastery before the learner said so out loud.
+
+**How it is observed, given §11.2 says no analytics.** Through M3 the entire user
+base is the author, and evaluation is *manual*: his `localStorage` is inspectable,
+and an export button dumps it as JSON. No collection, no transmission, no
+third party. That is sufficient for a sample size of one and stops being
+sufficient the moment there is a second user — at which point §11.2 must be
+revisited deliberately rather than drifted past.
 
 ### 11.2 Analytics
 
@@ -644,6 +690,58 @@ content   CC BY 4.0      lesson prose, diagrams, the failure log
 Separating them is standard for a project that is both software and writing, and
 CC BY means the lessons can be reused by other educators with attribution — which
 is the point of writing them.
+
+### 11.3a ⚑ Prose accuracy — the gap in our own principle
+
+§4 says all mathematics is computed and therefore cannot be wrong. **That
+guarantee does not extend to the sentences around it** (codex review), and the
+explanation is most of a lesson.
+
+A page can render a correct table under a paragraph that misexplains it. The
+engine will not notice.
+
+```
+computed        tables, diagrams, orders, words, every property     ← verified
+authored        every sentence of explanation                        ← NOT verified
+```
+
+**Required process before any lesson ships:**
+
+1. **Every mathematical claim in prose gets a runnable counterpart.** If the text
+   says "V₄ has no element of order 4", a test asserts it. Claims that cannot be
+   made runnable are rewritten until they can be.
+2. **External review of the mathematics**, not just the code. Same discipline
+   already applied to plans and diffs.
+3. **Corrections are visible.** A dated errata note, not a silent edit — this
+   project has already recorded and had to retract a "resolved" claim about a
+   learner's understanding.
+
+### 11.3b Contributed groups — moderation and abuse
+
+Groups are welcome contributions (§11.4) and are also arbitrary user input.
+
+```
+the validator IS the review     five phases; a non-group cannot merge
+but CI must run it              a contributed file that skips validation is
+                                an unreviewed assertion in a trusted library
+size bound                      isAssociative is O(n³) against a 10 ms CPU
+                                ceiling. Cap element count in CI and in the API.
+prose fields                    notes/aliases are free text and are DISPLAYED.
+                                Sanitise. Review by a human before merge.
+attribution                     source field required, so provenance is not lost
+```
+
+### 11.3c API versioning and terms
+
+Paths are already `/api/v1/...`. The policy that makes that mean something:
+
+```
+additive changes    new fields, new endpoints — no version bump
+breaking changes    new version path. v1 keeps working.
+deprecation         announced in the repo, minimum 6 months, Deprecation header
+terms               "no warranty, no uptime guarantee, be reasonable." A free
+                    educational API needs one short honest paragraph, not an EULA.
+```
 
 ### 11.4 Contribution model
 
@@ -691,10 +789,26 @@ MCP consumers need identity          OAuth 2.1, per the 2026-07-28 stateless spe
 primary user: he reads Carter in bed on a phone and works at a desk.
 `localStorage` does not follow him between them.
 
-**The sync-code option deserves naming now** because it is so much cheaper than
-auth and solves the real problem. Six characters mapping to a progress blob in
-Cloudflare KV. No email, no password, no personal data, therefore no consent
-banner and no GDPR surface. Type it once on the other device.
+**The sync-code option deserves naming now** because it is much cheaper than auth
+and solves the real problem: a code mapping to a progress blob in Cloudflare KV,
+typed once on the other device. No email, no password, no account.
+
+**⚠ But "six characters, no PII" was under-specified, and one part of it was
+wrong** (codex review). If this is built, it needs:
+
+```
+entropy        6 chars is brute-forceable. ≥128 bits, unguessable, not sequential.
+expiry         codes expire. A permanent bearer token to someone's progress is
+               a credential, whether or not it is called one.
+rate limiting  on redemption, or the entropy does not help.
+retention      state a deletion policy up front. Data with no expiry is a
+               liability that accrues silently.
+```
+
+And **"no GDPR surface" was too strong.** Progress data identifies learning
+behaviour over time and can be personal data even without a name attached. The
+honest claim is *minimal* personal data, not none — and a one-paragraph privacy
+note is required if this ships, not optional.
 
 **Note the cost argument weakened.** "No database" was partly about free tiers —
 but Cloudflare's free tier includes KV and D1, so a minimal identity layer is
