@@ -141,6 +141,45 @@ The lineage is Tufte and Carter, not SaaS landing page.
 - **Dark mode** — the primary user studies at night.
 - No gradients, no hero images, no illustrations of abstract concepts.
 
+### 6.3a Rendering strategy — and a contradiction in an earlier draft
+
+**⚠ KaTeX versus the 50 KB budget (gemini, round 2).** An earlier draft required
+KaTeX for notation *and* capped content-page JS at 50 KB. KaTeX is ~280 KB before
+fonts. Those two requirements could not both be met.
+
+**Resolution: render mathematics at BUILD time.** `remark-math` + `rehype-katex`
+run during the Astro build and emit HTML plus MathML. Ship **zero** runtime JS
+for notation, and get screen-reader support for free because MathML is semantic.
+
+Runtime KaTeX is permitted only in the explorer, where a user types an expression
+and it must render live — and that page has the 200 KB budget.
+
+**Cayley diagrams: SVG, computed, laid out by known shape.**
+
+```
+format    inline SVG. crisp at any zoom, styleable by CSS, ARIA-labelable,
+          a few KB of generator code. Not canvas, not WebGL — these groups
+          are tiny and SVG is the accessible choice.
+
+layout    BY SHAPE, not by physics. Cyclic → a ring. Dihedral → two concentric
+          rings joined by rungs. Direct products → a grid. Carter hand-placed
+          all 300+ of his figures for this reason: a force simulation produces
+          a WORSE picture than fifty lines of "put the n rotations on a circle".
+          A layout library (d3-force, elkjs) is only warranted for a group whose
+          shape we do not know — which, so far, is none of them.
+
+budget    diagram generator ≤ 15 KB gzipped. Layouts are trigonometry.
+```
+
+### 6.3b Offline and the group library
+
+The six group files total a few KB. **Bundle them at build time** as a static
+import rather than fetching — offline works with no service-worker complexity,
+and there is no network round-trip on first paint.
+
+A service worker is only needed to cache the app shell. Library growth past a few
+dozen groups would change this (issue #9), not before.
+
 ### 6.4 ⚑ Requirements NOT stated, that I would add
 
 **Accessibility, and one part of it is urgent.** Cayley diagrams encode
@@ -183,6 +222,53 @@ True and useless. **The error message is the teaching moment.**
 - **Label domain toll.** Learning quaternion algebra to author Q₈ is *not*
   learning group theory. A learner who cannot tell the difference will believe
   they are failing at group theory when they are failing at quaternions.
+
+### 6.5 Progress state — schema and migration
+
+`localStorage`, versioned from day one, because lesson content will change and
+stale progress must not silently corrupt.
+
+```ts
+type Progress = {
+  version: 1;
+  lessons: Record<LessonId, {
+    completedAt: string;      // ISO
+    attempts: number;
+    firstTry: boolean;        // ← the honest signal
+    saidIDontKnow: number;    // NOT a penalty. Data.
+  }>;
+  lastLesson: LessonId | null;
+};
+```
+
+**Migration policy:** on a version bump, keep completions, discard attempt
+statistics. On an unknown `LessonId`, drop that entry silently. Never block the
+app on unreadable state — clear it and continue.
+
+`firstTry` is the field that matters. Given this project's history of recording
+recognition as mastery, **"completed" alone is not evidence.**
+
+### 6.6 Exercise taxonomy — the mechanics of DO
+
+Section 8 named the lesson shape but not the interactions. Concretely:
+
+| type | the learner does | example |
+|---|---|---|
+| **predict** | commits an answer before any reveal | "how many symmetries does a square have?" |
+| **fill a cell** | completes part of a multiplication table | one cell, then a row, then the grid |
+| **walk a path** | clicks arrows to travel the diagram | "get from `i` to `−k`" |
+| **pick the element** | selects from the element list | "which one is the identity?" |
+| **classify** | judges a property | "is this abelian? is it even a group?" |
+| **spot the difference** | compares two groups | C₄ vs V₄ — what separates them? |
+| **author** | fills in arrows, validator grades | Q₈ — advanced, optional |
+
+**"I don't know" is a button on every exercise.** It is not a penalty and never
+counts as failure. It reveals a *structural hint* — a different representation,
+not the answer — logs `saidIDontKnow`, and offers the exercise again later.
+
+That behaviour is load-bearing. This project's biggest teaching failure was a
+learner unable to say he was lost, because the surrounding praise made it
+expensive. **The button removes the social cost.**
 
 **The tutorial may never get ahead of the author.** Lesson *N* covers only
 material earned through exercises. This paces the project honestly and prevents
@@ -277,6 +363,37 @@ session handshake — which is exactly what makes serverless MCP hosting practic
 The most novel tool is the **validator**: an agent can author a group and be told,
 in group-theory language, precisely why it is not one.
 
+**Endpoints:**
+
+```
+GET  /api/v1/groups                    the library
+GET  /api/v1/groups/:name              show
+GET  /api/v1/groups/:name/table        the multiplication table
+GET  /api/v1/groups/:name/arrows       the diagram as data
+GET  /api/v1/groups/:name/mul?x=&y=    one product, with the path walked
+POST /api/v1/validate                  is this JSON a group? ← the novel one
+POST /api/mcp                          stateless MCP transport
+```
+
+**Free-tier protection (gemini, round 2).** Vercel's hobby tier has finite
+invocations and a short function timeout, and an unauthenticated public API is
+the obvious way to exhaust both.
+
+```
+cache hard          every GET is deterministic and immutable. s-maxage=31536000,
+                    stale-while-revalidate. The CDN should serve nearly all of it
+                    and functions should almost never run.
+prefer static       generate the whole library as static JSON at build time. The
+                    only genuinely dynamic endpoint is POST /validate.
+rate limit          edge middleware, per-IP, on the POST routes only.
+bound the input     POST /validate caps element count and payload size. The
+                    validator is O(n³) — an adversarial 500-element "group" is a
+                    denial-of-service with a 10-second function timeout.
+```
+
+That last one is a real vulnerability, not a hypothetical: `isAssociative` is a
+triple loop and the timeout is short.
+
 ## 8. Content strategy — the actual hard part
 
 **Lessons are the product. Code is scaffolding.** Most educational projects die
@@ -338,14 +455,17 @@ M1 is the real gate. **If lesson 1 does not work on the author, stop.**
 
 ## 11. Open questions
 
-1. **Astro or something smaller?** The explorer is app-like and may fight the
-   islands model. Worth a spike in M0.
-2. **How much of the CLI should the web mirror?** All nine commands, or is the
-   web a different surface with different affordances?
-3. **Does the explorer need diagram rendering (issue #4) to be worth shipping**,
-   or is a rich table view enough for M3?
-4. **Should lessons be data or code?** MDX with embedded components is flexible;
-   a JSON lesson format would be authorable by non-programmers and generatable.
+1. ~~**Astro or something smaller?**~~ **Resolved — Astro.** Both reviewers
+   independently agreed: SSG keeps lesson pages under budget, and islands handle
+   the interactive components. The explorer becomes one heavier route.
+2. ~~**How much of the CLI should the web mirror?**~~ **Resolved — not parity.**
+   The web surfaces `show`, `table`, `arrows`, `mul` and `diff` as interactive
+   views. `check` and `list` are CLI-shaped. The API exposes everything.
+3. ~~**Does the explorer need diagram rendering?**~~ **Resolved — yes.** Diagrams
+   are the visual thesis; a table-only explorer undersells it. See 6.3a.
+4. ~~**Lessons as data or code?**~~ **Resolved — MDX with typed components.**
+   Prose stays readable, interactive widgets stay typed. Revisit if lessons ever
+   need to be authored by non-programmers or generated.
 5. **Is there a second user?** Everything here optimises for one known learner.
    That is a strength for M1 and a risk by M4.
 6. **Licence stays MIT** — confirmed — but do hosted API terms need anything
