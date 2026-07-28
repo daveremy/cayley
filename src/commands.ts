@@ -19,6 +19,7 @@ import {
   isAbelian,
   isAssociative,
   isClosed,
+  inverses,
   isLatinSquare,
   multiply,
   squares,
@@ -72,6 +73,7 @@ export type Detail = Summary & {
   elements: string[];
   identity: string;
   elementOrders: Record<string, number>;
+  inverses: Record<string, string>;
   squares: Record<string, string>;
   words: Record<string, string[]>;
   properties: {
@@ -118,6 +120,7 @@ export function show(name: string): Detail {
     elements: [...g.elements],
     identity: g.identity,
     elementOrders: Object.fromEntries(g.elements.map((x) => [x, order(g, x)])),
+    inverses: inverses(g),
     squares: squares(g),
     words: Object.fromEntries([...words(g)].map(([e, w]) => [e, w])),
     properties: {
@@ -301,6 +304,7 @@ export function check(path: string): Detail & { file: string; valid: true } {
     elements: [...g.elements],
     identity: g.identity,
     elementOrders: Object.fromEntries(g.elements.map((x) => [x, order(g, x)])),
+    inverses: inverses(g),
     squares: squares(g),
     words: Object.fromEntries([...words(g)].map(([e, w]) => [e, w])),
     properties: {

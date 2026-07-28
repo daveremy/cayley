@@ -22,6 +22,8 @@ import {
   isAbelian,
   isAssociative,
   isClosed,
+  inverse,
+  inverses,
   isLatinSquare,
   multiply,
   squares,
@@ -175,5 +177,63 @@ describe("words are paths from the identity", () => {
     for (const g of ALL) {
       for (const x of g.elements) assert.equal(multiply(g, x, g.identity), x);
     }
+  });
+});
+
+describe("inverses", () => {
+  test("x · x⁻¹ = e and x⁻¹ · x = e, for every element of every group", () => {
+    for (const g of ALL) {
+      for (const x of g.elements) {
+        const inv = inverse(g, x);
+        assert.equal(multiply(g, x, inv), g.identity, `${g.name}: ${x} · ${inv} should be ${g.identity}`);
+        assert.equal(multiply(g, inv, x), g.identity, `${g.name}: left inverse must agree with right`);
+      }
+    }
+  });
+
+  test("the inverse is unique — a consequence of associativity", () => {
+    for (const g of ALL) {
+      for (const x of g.elements) {
+        const all = g.elements.filter((y) => multiply(g, x, y) === g.identity);
+        assert.equal(all.length, 1, `${g.name}: ${x} has ${all.length} inverses, should have exactly 1`);
+      }
+    }
+  });
+
+  test("inverting twice gets you back", () => {
+    for (const g of ALL) {
+      for (const x of g.elements) assert.equal(inverse(g, inverse(g, x)), x);
+    }
+  });
+
+  test("x⁻¹ = x^(order−1) — the 'no reverse gear' identity", () => {
+    // Going forward order-1 steps is the same as going backward one.
+    for (const g of ALL) {
+      for (const x of g.elements) {
+        let n = 1, cur = x;
+        while (cur !== g.identity) { cur = multiply(g, cur, x); n++; }
+        let power = g.identity;
+        for (let k = 0; k < n - 1; k++) power = multiply(g, power, x);
+        assert.equal(power, inverse(g, x), `${g.name}: ${x}^${n - 1} should equal ${x}⁻¹`);
+      }
+    }
+  });
+
+  test("an element is its own inverse exactly when its order is 1 or 2", () => {
+    for (const g of ALL) {
+      for (const x of g.elements) {
+        let n = 1, cur = x;
+        while (cur !== g.identity) { cur = multiply(g, cur, x); n++; }
+        assert.equal(inverse(g, x) === x, n <= 2, `${g.name}: ${x} has order ${n}`);
+      }
+    }
+  });
+
+  test("Q₈: the inverse of each of i, j, k is its negative", () => {
+    const q8 = findGroup("Q8", ALL)!;
+    assert.deepEqual(inverses(q8), {
+      "1": "1", i: "-i", j: "-j", k: "-k",
+      "-1": "-1", "-i": "i", "-j": "j", "-k": "k",
+    });
   });
 });

@@ -315,6 +315,48 @@ export function identityWorks(g: Group): boolean {
  * identity serves all), here ∀ comes first (each x gets its own inverse). Same
  * two symbols, opposite meaning.
  */
+/**
+ * x⁻¹ — the element that undoes x.
+ *
+ * ∃! y ∈ G :  xy = yx = e
+ *
+ *   "there is exactly ONE y with x times y, and y times x, both giving e"
+ *
+ * The uniqueness is not an extra assumption — it follows from associativity.
+ * If y and z both invert x then
+ *
+ *     y = y·e = y·(x·z) = (y·x)·z = e·z = z
+ *              └──────────┬──────────┘
+ *                   associativity
+ *
+ * which is part of why associativity is an axiom rather than a convenience:
+ * without it an element could have several different undos.
+ *
+ * Three ways to compute this, and the choice is not obvious:
+ *
+ *   1. SEARCH THE ROW      find the y with t[x][y] === e.  O(n), always works.
+ *   2. BACKWARDS ONE ARROW which node's g-arrow lands on e? O(n), but only for
+ *                          a generator — its word is one step long.
+ *   3. AS A POWER          x⁻¹ = x^(order(x) − 1), since x^order = e.
+ *                          This is "in a finite group you never need a reverse
+ *                          gear" as a formula: going forward far enough IS
+ *                          going backward.
+ *
+ * Row search is used here — simplest, and the table is memoised anyway. Method
+ * 3 would matter if the table were ever too large to build.
+ */
+export function inverse(g: Group, x: Element): Element {
+  const t = table(g);
+  const y = g.elements.find((cand) => t[x][cand] === g.identity);
+  if (y === undefined) throw new Error(`${g.name}: ${x} has no inverse — not a group`);
+  return y;
+}
+
+/** Every element's inverse, in one pass. */
+export function inverses(g: Group): Record<Element, Element> {
+  return Object.fromEntries(g.elements.map((x) => [x, inverse(g, x)]));
+}
+
 export function everyElementHasInverse(g: Group): boolean {
   const t = table(g);
   return g.elements.every((x) => g.elements.some((y) => t[x][y] === g.identity));
