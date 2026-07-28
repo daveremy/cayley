@@ -215,9 +215,41 @@ export function printTable(g: Group): void {
   }
 }
 
-// ── Structural checks. These are theorems, running as assertions. ────────────
+// ── Structural checks: the axioms and their consequences, as running code ────
+//
+// Each carries its formal statement, then the same thing in English. The symbols
+// are worth reading rather than skipping — they say exactly what the code says,
+// more compactly, and the correspondence is close to mechanical:
+//
+//     ∀   for all          →  .every()
+//     ∃   there exists     →  .some()
+//     ∈   is a member of   →  the element list / a Set
+//     G   the group        →  g.elements
+//     e   the identity     →  g.identity
+//     xy  x times y        →  t[x][y]     (juxtaposition means the operation)
+//
+// Four of these are the GROUP AXIOMS — closure, identity, inverses,
+// associativity. The rest are consequences or distinguishing properties.
 
-/** Every element appears exactly once per row and per column. */
+/**
+ * ∀a,b ∈ G, ∃! x ∈ G :  ax = b     and     ∃! y ∈ G :  ya = b
+ *
+ *   "for all a and b in G, there is exactly ONE x solving ax = b,
+ *    and exactly one y solving ya = b"
+ *
+ * The ∃! means "there exists a unique". Every equation has exactly one answer —
+ * which, laid out as a grid, is the statement that every element appears exactly
+ * once in each row and each column. Hence "Latin square".
+ *
+ * NOT an axiom. It is a CONSEQUENCE of inverses existing: if ax = b then
+ * x = a⁻¹b, and that is the only possibility. Carter flags this in the very
+ * paragraph before Definition 4.2 — "the impact of this fact on the appearance
+ * of multiplication tables", where "this fact" is that every element has an
+ * inverse.
+ *
+ * ⚠ The converse is false: every group table is a Latin square, but not every
+ * Latin square is a group table. Latin squares can fail associativity.
+ */
 export function isLatinSquare(g: Group): boolean {
   const t = table(g);
   const complete = (xs: Element[]) => new Set(xs).size === g.elements.length;
@@ -229,25 +261,86 @@ export function isLatinSquare(g: Group): boolean {
   );
 }
 
-/** Does x·y === y·x for every pair? */
+/**
+ * ∀x,y ∈ G :  xy = yx
+ *
+ *   "for all x and y in G, x times y equals y times x"
+ *
+ * NOT an axiom — plenty of real groups fail it. A group that satisfies it is
+ * called ABELIAN, after Niels Henrik Abel. C₄ and V₄ are; D₄ and Q₈ are not.
+ *
+ * Compare the shape of this with isAssociative below. Here the ELEMENTS swap
+ * places. There the BRACKETS move and the elements stay put. Two different
+ * claims that are easy to confuse precisely because the code looks similar.
+ */
 export function isAbelian(g: Group): boolean {
   const t = table(g);
   return g.elements.every((x) => g.elements.every((y) => t[x][y] === t[y][x]));
 }
 
-/** Sanity: the identity really does nothing, from both sides. */
+/**
+ * ∃e ∈ G, ∀x ∈ G :  xe = ex = x        ← AXIOM
+ *
+ *   "there is an e in G such that for every x, x times e and e times x
+ *    both give back x"
+ *
+ * Both sides are checked, and in a non-abelian group that matters: nothing
+ * guarantees that something acting as an identity from the right also does so
+ * from the left. (For groups they must coincide — but that is a small theorem,
+ * not something to assume while validating data that may not be a group.)
+ *
+ * Note the ∃ sits OUTSIDE the ∀ here: one identity works for every element. In
+ * everyElementHasInverse below the quantifiers are the other way round, and that
+ * ordering is the whole difference between the two axioms.
+ */
 export function identityWorks(g: Group): boolean {
   const t = table(g);
   return g.elements.every((x) => t[x][g.identity] === x && t[g.identity][x] === x);
 }
 
-/** Every element has something that undoes it. */
+/**
+ * ∀x ∈ G, ∃y ∈ G :  xy = e             ← AXIOM
+ *
+ *   "for every x in G, there EXISTS a y in G with x times y equal to
+ *    the identity"
+ *
+ * That y is written x⁻¹ and called the inverse of x.
+ *
+ * ⚑ The only ∃ in this file, and the only .some(). Every other check is ∀ all
+ * the way down. You do not need everything to undo x — you need ONE thing to
+ * exist. Swap .some() for .every() and you would be claiming everything undoes
+ * everything, which is false in any group bigger than order 2.
+ *
+ * And note the quantifier ORDER against identityWorks: there ∃ came first (one
+ * identity serves all), here ∀ comes first (each x gets its own inverse). Same
+ * two symbols, opposite meaning.
+ */
 export function everyElementHasInverse(g: Group): boolean {
   const t = table(g);
   return g.elements.every((x) => g.elements.some((y) => t[x][y] === g.identity));
 }
 
-/** Every product lands back inside the set. Nothing escapes. */
+/**
+ * ∀x,y ∈ G :  xy ∈ G                   ← AXIOM
+ *
+ *   "for all x and y in G, their product is also in G"
+ *
+ * ⚑ This cannot fail for any group that loaded, and that is worth understanding
+ * rather than deleting.
+ *
+ * multiply() only ever assigns `here` from two sources: the caller's element, or
+ * g.arrows[gen][here]. And phase 3 of validation already proved every arrow
+ * target is an element. So a product has nowhere else to land — the type
+ * Permutation = Record<Element, Element> says as much in its signature.
+ *
+ * The interesting consequence: choosing arrows as the representation turns an
+ * AXIOM into a STRUCTURAL GUARANTEE. Represent a group by a formula instead and
+ * closure becomes something you must check. Represent it as a diagram and it
+ * comes free, because an arrow can only point at a node.
+ *
+ * Kept as cheap insurance for raw objects that skipped the loader, and because
+ * it documents the axiom.
+ */
 export function isClosed(g: Group): boolean {
   const t = table(g);
   const inside = new Set(g.elements);
@@ -255,10 +348,25 @@ export function isClosed(g: Group): boolean {
 }
 
 /**
- * (x·y)·z === x·(y·z) for all triples.
+ * ∀x,y,z ∈ G :  (xy)z = x(yz)          ← AXIOM
  *
- * Not automatic — it is a claim about the arrow data. Write arrows that do not
- * come from a real group and this is what catches you. O(n³), fine at this size.
+ *   "for all x, y and z in G, multiplying x·y first gives the same answer
+ *    as multiplying y·z first"
+ *
+ * ⚑ The elements do NOT move. x, y and z stay in that order in both expressions.
+ * Only the BRACKETS move. That is the whole difference from commutativity, where
+ * the elements swap and the brackets are irrelevant:
+ *
+ *     abelian       xy = yx           elements swapped
+ *     associative   (xy)z = x(yz)     brackets moved
+ *
+ * Unlike closure, this can genuinely fail on well-formed arrows — it is a real
+ * claim about the data, and it is what catches arrow sets that are permutations
+ * and reach everything but still are not a group.
+ *
+ * O(n³): the only triple loop here. 4.7M comparisons at order 168, which is why
+ * textbooks state associativity rather than verify it, and why it is flagged in
+ * the roadmap for large groups.
  */
 export function isAssociative(g: Group): boolean {
   const t = table(g);
@@ -267,13 +375,32 @@ export function isAssociative(g: Group): boolean {
   );
 }
 
-/** The diagonal: every element multiplied by itself. */
+/**
+ * x ↦ x²   for each x ∈ G
+ *
+ *   "map each x to x times itself"
+ *
+ * The main diagonal of the multiplication table. Not a property, just a view —
+ * but a revealing one. V₄'s diagonal is all identity; C₄'s is not, and that
+ * single glance distinguishes two groups of the same order.
+ */
 export function squares(g: Group): Record<Element, Element> {
   const t = table(g);
   return Object.fromEntries(g.elements.map((x) => [x, t[x][x]]));
 }
 
-/** Is every element its own inverse? (V₄ yes, C₄ no — visible as the diagonal.) */
+/**
+ * ∀x ∈ G :  x² = e        equivalently   ∀x ∈ G :  x = x⁻¹
+ *
+ *   "for all x in G, x times itself is the identity"
+ *   — that is, everything is its own undo
+ *
+ * NOT an axiom. True in V₄, false in C₄, and the cleanest way to tell those two
+ * apart. Visible instantly as a diagonal of pure identity.
+ *
+ * A group with this property is necessarily abelian, and is a direct product of
+ * copies of C₂ — which is exactly why V₄ is also written C₂ × C₂. Two switches.
+ */
 export function allSelfInverse(g: Group): boolean {
   const sq = squares(g);
   return g.elements.every((x) => sq[x] === g.identity);
