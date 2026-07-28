@@ -10,9 +10,9 @@ now, for a reason given below.
 
 ```bash
 git clone https://github.com/daveremy/cayley && cd cayley
-npm link                     puts `cayley` on your PATH
-npm test                     the whole suite, in seconds
-npm run g -- --help          the CLI, without installing it
+npm link                     # puts cayley on your PATH
+npm test                     # the whole suite, in seconds
+npm run g -- --help          # the CLI, without installing it
 ```
 
 Node 25+. Zero dependencies, so there is nothing to install and no lockfile to
