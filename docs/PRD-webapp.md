@@ -889,6 +889,24 @@ conflicts with the performance budget, the offline requirement, and the audience
 If completion data is ever wanted: self-hosted, aggregate, opt-in, and it must
 never be the reason a page ships JavaScript.
 
+**Feedback is a different thing, and does not violate this** (issue #27):
+
+```
+ANALYTICS   passive, continuous, unasked        refused
+FEEDBACK    explicit, one press, volunteered    allowed
+```
+
+The rule that keeps them apart: **show the payload before sending.** A preview of
+everything about to be transmitted, editable, with a cancel. If a person is
+surprised by what we sent, we built it wrong.
+
+Why it earns a place: the failure log is the curriculum, and it is one learner
+deep. The most useful sentence anyone has said here — *"you seem to think I get
+things I don't yet"* — arrived only because that learner was in a conversation
+with someone who could hear it. Someone working alone has no way to say it.
+Without this channel the lesson sequence never gets evidence from anyone but its
+author.
+
 ### 11.3 Licensing — two licences, deliberately
 
 ```

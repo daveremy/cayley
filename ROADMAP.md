@@ -17,6 +17,9 @@ keeps the reasoning; the issues keep the state.
 | [10](https://github.com/daveremy/cayley/issues/10) | Host it, with a strong API and MCP | `library` |
 | [11](https://github.com/daveremy/cayley/issues/11) | Exercise type: solve a domain problem with structure | `learning` |
 | [12](https://github.com/daveremy/cayley/issues/12) | Teach reading a table: is it a group? which one? | `learning` |
+| [23](https://github.com/daveremy/cayley/issues/23) | Domain provenance + switchable label registers | `learning` |
+| [25](https://github.com/daveremy/cayley/issues/25) | Identity — deferred, with triggers | `web` |
+| [27](https://github.com/daveremy/cayley/issues/27) | In-lesson feedback → triage → issue | `learning` |
 
 ## The web app
 
