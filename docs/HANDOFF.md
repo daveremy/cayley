@@ -12,6 +12,13 @@ Two threads run in parallel and feed each other. He is learning group theory. Yo
 are building the tool that teaches it. **What he gets stuck on becomes the
 curriculum.**
 
+**⚑ FIRST THING TO KNOW ABOUT THE PRODUCT.** Every idea appears three ways —
+picture, notation, code — as three orthogonal holds on the same fact. Code gets
+prominence because nothing else offers it, but it is **a way in, not a
+prerequisite**: delete every code panel and the course must still teach. Dave
+corrected an earlier, narrower framing ("for people who think in code") on
+2026-07-29, partly because fewer people will write code over time, not more.
+
 ---
 
 ## Read these first
@@ -45,6 +52,14 @@ browser seam CUT (#13). commands.ts bundles for a browser with zero node
 web          Astro skeleton. One page rendering V₄'s table from the engine.
              4,979 bytes HTML, 1,462 gzipped, ZERO JavaScript.
 ```
+
+**IN FLIGHT RIGHT NOW:** a background workflow researching the design system —
+run ID `wf_6969ae6b-6b1`, ten agents. Six parallel research threads
+(Ciechanowski, Distill+Tufte, colourblind-safe encoding, math typography,
+negative examples from Khan/Brilliant/MathWorld/Group Explorer, typeface
+selection), then a synthesis into one proposal, then three adversarial critiques
+(accessibility, performance, distinctiveness). **Check `/workflows` or the
+transcript before starting design work — the answer may already be waiting.**
 
 **Immediately next: #16, the design system.** The site works and looks like a
 placeholder. #17 constrains it — colour can never be the only channel for
