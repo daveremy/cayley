@@ -1,0 +1,28 @@
+name: CI
+
+# One question, answered on every push: do the tests pass?
+# The library's axiom layer runs against every file in groups/, so this also
+# re-derives the mathematics of the whole library on each commit.
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '25'
+
+      # No install step. Zero dependencies, no lockfile — `npm ci` would fail
+      # for want of one and `npm install` would be a network round trip to
+      # fetch nothing. `npm test` runs node --test directly.
+      - run: npm test
