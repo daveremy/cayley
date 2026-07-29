@@ -1,5 +1,18 @@
 # cayley
 
+> **Shelved, July 2026.** Not abandoned and not finished — parked while its
+> author spends his attention elsewhere. Everything below works. The CLI is
+> installable, the library validates, the tests pass, and the web skeleton
+> builds. Nothing here is half-torn-down.
+>
+> If you want to pick it up, read [`docs/HANDOFF.md`](docs/HANDOFF.md) first. It
+> says where things stood, and [`docs/DESIGN.md`](docs/DESIGN.md) says what the
+> web app was about to become. Issues are open and the work is described.
+>
+> **The part worth taking, if you take nothing else:** every number in this
+> repository is computed from five arrows per group, so it cannot display
+> mathematics that is false. That idea does not need the rest of the project.
+
 **Group theory, three ways at once.**
 
 Every idea here is shown as a picture, as notation, and as code — the same fact
@@ -207,8 +220,9 @@ the mathematics is sound, which is most of what a reviewer would be doing anyway
 
 **Bugs and code:** ordinary pull requests.
 
-**Lessons: by invitation, for now.** The tutorial cannot get ahead of the person
-learning from it, and that constraint does not survive open contribution.
+**Lessons were by invitation**, because the tutorial could not get ahead of the
+one person learning from it. With the project shelved that constraint is moot.
+If you fork it and teach someone, the rule is yours to set.
 
 ---
 

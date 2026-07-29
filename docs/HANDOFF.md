@@ -1,5 +1,13 @@
 # Session handoff
 
+> **The project was shelved on 2026-07-29.** Dave parked it to put his attention
+> on fitness and general learning. Nothing was left broken; see the README.
+>
+> This document is still accurate about where things stood, and is the right
+> place to start if the project is ever picked back up. The design system in
+> [`DESIGN.md`](./DESIGN.md) landed after three adversarial critiques and was
+> never implemented — that is the next piece of work, not more research.
+
 Paste this into a new session to pick up where the last one left off.
 
 ---
