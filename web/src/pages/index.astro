@@ -1,0 +1,109 @@
+---
+// ─────────────────────────────────────────────────────────────────────────────
+// This frontmatter runs at BUILD time, in Node. None of it ships.
+//
+// It could import load.ts and read the disk. It does not — see lib/library.ts
+// for why. Short version: resolving a path relative to the module works in Node
+// and breaks once a bundler moves the module. Glob-importing the JSON has no
+// path to get wrong, and puts the groups IN the bundle, which is what makes the
+// site work offline.
+//
+// Everything below is computed from the engine. No table in this file was typed.
+// ─────────────────────────────────────────────────────────────────────────────
+import { library as lib } from "../lib/library.ts";
+import * as cmd from "../../../src/commands.ts";
+const v4 = cmd.tableOf(lib, "V4");
+const detail = cmd.show(lib, "V4");
+const groups = cmd.list(lib).groups;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>cayley — group theory for people who think in code</title>
+    <style>
+      :root {
+        --ink: #14213d; --mute: #6b6b7b; --rule: #e4e7ee;
+        --bg: #fdfdfc; --accent: #1b7f4b;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root { --ink: #e8e9ed; --mute: #9a9db0; --rule: #2a2e3d; --bg: #14151a; --accent: #4ade80; }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; padding: 3rem 1.5rem; background: var(--bg); color: var(--ink);
+        font: 17px/1.65 ui-serif, Georgia, serif;
+        max-width: 46rem; margin-inline: auto;
+      }
+      h1 { font-size: 1.9rem; margin: 0 0 .3rem; letter-spacing: -.02em; }
+      .sub { color: var(--mute); font-style: italic; margin: 0 0 2.5rem; }
+      h2 { font-size: 1.1rem; margin: 2.5rem 0 .75rem; font-weight: 600; }
+      p { margin: 0 0 1rem; }
+      code, td, th { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+      table { border-collapse: collapse; font-size: .95rem; margin: 1rem 0; }
+      th, td { padding: .45rem .8rem; text-align: center; border: 1px solid var(--rule); }
+      thead th, tbody th { background: color-mix(in srgb, var(--rule) 40%, transparent); font-weight: 600; }
+      .corner { background: transparent !important; color: var(--mute); }
+      .note { color: var(--mute); font-size: .9rem; }
+      ul { padding-left: 1.2rem; }
+      li { margin: .2rem 0; }
+      .built { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+               color: var(--mute); font-size: .85rem; }
+    </style>
+  </head>
+  <body>
+    <h1>cayley</h1>
+    <p class="sub">Group theory, for people who think in code.</p>
+
+    <p>
+      A group is a set of things you can <em>do</em>, where every move can be
+      undone. Below is <code>V₄</code> — the four symmetries of a rectangle.
+      Leave it alone, flip it left–right, flip it top–bottom, or do both.
+    </p>
+
+    <h2>Its multiplication table</h2>
+    <table>
+      <thead>
+        <tr>
+          <th class="corner">·</th>
+          {v4.elements.map((e) => <th>{e}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {v4.elements.map((row) => (
+          <tr>
+            <th>{row}</th>
+            {v4.elements.map((col) => <td>{v4.rows[row][col]}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+
+    <p class="note">
+      Nobody typed that. It came from four arrows in
+      <code>groups/v4.group.json</code>, and if they were wrong the file would
+      not have loaded.
+    </p>
+
+    <h2>What the engine already knows about it</h2>
+    <ul>
+      <li>order <code>{detail.order}</code>, {detail.abelian ? "abelian" : "non-abelian"}</li>
+      <li>generators: <code>{detail.generators.join(", ")}</code> — {detail.generators.length} needed</li>
+      <li>every element is its own inverse: <code>{String(detail.allSelfInverse)}</code></li>
+      <li>element orders: <code>{Object.entries(detail.elementOrders).map(([k, v]) => `${k}:${v}`).join("  ")}</code></li>
+    </ul>
+
+    <h2>The library</h2>
+    <ul>
+      {groups.map((g) => (
+        <li><code>{g.name}</code> — order {g.order}, {g.abelian ? "abelian" : "non-abelian"}</li>
+      ))}
+    </ul>
+
+    <p class="built">
+      Built from the engine at {new Date().toISOString().slice(0, 10)}. This page
+      ships no JavaScript.
+    </p>
+  </body>
+</html>

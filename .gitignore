@@ -1,3 +1,6 @@
 node_modules/
 *.log
 test/library.fixture.json
+web/node_modules/
+web/dist/
+web/.astro/

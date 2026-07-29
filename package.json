@@ -10,7 +10,9 @@
     "check": "node --experimental-strip-types src/cli.ts check",
     "test": "node --experimental-strip-types --test src/*.test.ts",
     "test:purity": "./test/bundle-purity.sh",
-    "test:all": "npm test && npm run test:purity"
+    "test:all": "npm test && npm run test:purity",
+    "web": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build"
   },
   "bin": {
     "cayley": "bin/cayley.mjs"
