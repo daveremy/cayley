@@ -1,6 +1,10 @@
 # cayley
 
-**Group theory, for people who think in code.**
+**Group theory, three ways at once.**
+
+Every idea here is shown as a picture, as notation, and as code — the same fact
+in three registers, so you can enter through whichever one you already trust and
+use the others to check yourself.
 
 A group is a set of things you can *do*, where every move can be undone. Rotating
 a square. Shuffling a deck. Flipping a switch. Turning a Rubik's cube. It is the
@@ -18,6 +22,10 @@ elements.every(x =>                   the code
 
 `∀` is `.every()`. `∃` is `.some()`. Nobody tells you that, and it takes about
 four seconds to learn.
+
+The code register is the one nothing else offers, so it gets real weight here.
+But it is a way in, not a requirement — **ignore it entirely and the pictures and
+notation still carry the whole course.**
 
 ---
 

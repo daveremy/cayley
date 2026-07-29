@@ -72,6 +72,34 @@ developer who has never read a quantifier can read one immediately once shown.
 
 **Three registers, one fact, always.** That is the product.
 
+### 3.1 ⚑ Code is a register, not a prerequisite
+
+An earlier draft positioned this as *"group theory for people who think in code."*
+Too narrow, and it ages badly.
+
+```
+picture      a square you can turn
+notation     |D₄| = 8
+code         g.elements.length === 8
+```
+
+**Three orthogonal ways to hold the same fact.** A learner should be able to enter
+through whichever they already trust, and use the other two to check themselves.
+The code register gets prominence because nothing else offers it — but a reader
+who ignores every code block must still get the whole course.
+
+Two reasons this matters more than positioning tidiness:
+
+1. **It is better pedagogy.** Someone who reads notation fluently and finds
+   diagrams vague benefits from the same triangulation as someone who is the
+   reverse. Three registers is a *redundancy* argument, not an audience one.
+2. **The audience shifts.** Fewer people will write code over time, not more.
+   A product defined by "you must read JavaScript" narrows every year; one
+   defined by "here is the same truth three ways" does not.
+
+**Test for every lesson:** delete the code panel. Does the lesson still teach?
+If not, the code was carrying meaning the other registers should have carried.
+
 ## 3a. Influences, and where we leave them
 
 **This is not a companion to any book**, and positioning it as one would be both
